@@ -26,6 +26,8 @@ modules =
     Compiler.Scheme.Gambit,
     Compiler.Scheme.Common,
 
+    Compiler.Swift,
+
     Core.AutoSearch,
     Core.Binary,
     Core.CaseBuilder,

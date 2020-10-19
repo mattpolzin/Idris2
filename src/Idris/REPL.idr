@@ -5,6 +5,7 @@ import Compiler.Scheme.Racket
 import Compiler.Scheme.Gambit
 import Compiler.ES.Node
 import Compiler.ES.Javascript
+import Compiler.Swift
 import Compiler.Common
 
 import Core.AutoSearch
@@ -189,6 +190,7 @@ findCG
               Gambit => pure codegenGambit
               Node => pure codegenNode
               Javascript => pure codegenJavascript
+              Swift => pure codegenSwift
               Other s => case !(getCodegen s) of
                             Just cg => pure cg
                             Nothing => do coreLift $ putStrLn ("No such code generator: " ++ s)
