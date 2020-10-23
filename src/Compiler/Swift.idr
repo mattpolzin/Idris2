@@ -27,12 +27,6 @@ import Idris.Version
 import Utils.Hex
 import Utils.Path
 
-data SwiftExec = Interp | Compiler
-
-findSwift : SwiftExec -> IO String
-findSwift Interp = pure "swift"
-findSwift Compiler = pure "swiftc"
-
 record NamespacedName where
   constructor MkNamespacedName
   path : List String -- unlike Namespace, stored in forward order.
@@ -59,6 +53,26 @@ consumeNameComponent : NamespacedName -> Either String (String, NamespacedName)
 consumeNameComponent (MkNamespacedName [] name) = Left name
 consumeNameComponent (MkNamespacedName (x :: xs) name) = Right (x, MkNamespacedName xs name)
 
+indentation : (quantity : Nat) -> String
+indentation quantity = pack $ replicate quantity ' '
+
+getExprImp : NamedCExp -> Core String
+getExprImp (NmLocal fc x) = ?getExprImp_rhs_1
+getExprImp (NmRef fc x) = ?getExprImp_rhs_2
+getExprImp (NmLam fc x y) = ?getExprImp_rhs_3
+getExprImp (NmLet fc x y z) = ?getExprImp_rhs_4
+getExprImp (NmApp fc x xs) = ?getExprImp_rhs_5
+getExprImp (NmCon fc x tag xs) = ?getExprImp_rhs_6
+getExprImp (NmOp fc x xs) = ?getExprImp_rhs_7
+getExprImp (NmExtPrim fc p xs) = ?getExprImp_rhs_8
+getExprImp (NmForce fc x) = ?getExprImp_rhs_9
+getExprImp (NmDelay fc x) = ?getExprImp_rhs_10
+getExprImp (NmConCase fc sc xs x) = ?getExprImp_rhs_11
+getExprImp (NmConstCase fc sc xs x) = ?getExprImp_rhs_12
+getExprImp (NmPrimVal fc x) = ?getExprImp_rhs_13
+getExprImp (NmErased fc) = ?getExprImp_rhs_14
+getExprImp (NmCrash fc x) = ?getExprImp_rhs_15
+
 ||| A function definition already assumed to be
 ||| nested within any relevant namespaces.
 record LeafDef where
@@ -72,17 +86,17 @@ record LeafDef where
 |||
 ||| The name is assumed fully localized to whatever enum
 ||| scope the function will be defined within.
-getFnImp : LeafDef -> Core String 
-getFnImp def = getImp (def.name, def.fc, def.def) where
-  getImp : (String, FC, NamedDef) -> Core String
+getImp : {default 0 indent : Nat} -> LeafDef -> Core String 
+getImp def = getImp {indent} (def.name, def.fc, def.def) where
+  getImp : {indent : Nat} -> (String, FC, NamedDef) -> Core String
   getImp (name, fc, MkNmFun args exp) =
-   pure $ "fn " ++ name -- map (\s => "fn " ++ s) $ prettyName n -- FunDecl fc n args !(impExp True exp)
+   pure $ indentation indent ++ "fn " ++ name -- map (\s => "fn " ++ s) $ prettyName n -- FunDecl fc n args !(impExp True exp)
   getImp (name, fc, MkNmError exp) =
     throw $ (InternalError $ show exp)
   getImp (name, fc, MkNmForeign cs args ret) =
-    pure $ "fgn " ++ name -- map (\s => "fgn " ++ s) $ prettyName n -- ForeignDecl n cs
-  getImp (name, fc, MkNmCon _ _ _) =
-    pure $ "cns " ++ name -- map (\s => "constructor " ++ s) $ prettyName n -- DoNothing
+    pure $ indentation indent ++ "fgn " ++ name -- map (\s => "fgn " ++ s) $ prettyName n -- ForeignDecl n cs
+  getImp (name, fc, MkNmCon tag arity nt) =
+    pure $ indentation indent ++ "cns " ++ name ++ (show tag) ++ " arity: " ++ (show arity) ++ " nt: " ++ (show nt) -- map (\s => "constructor " ++ s) $ prettyName n -- DoNothing
 
 ||| A hierarchy of function definitions
 ||| by namespace.
@@ -91,25 +105,28 @@ record NestedDefs where
   children : List (String, NestedDefs)
   defs : List LeafDef
 
-mutual
-  getDefImps : NestedDefs -> Core String
-  getDefImps ndefs = do fnImps <- traverse id $ getFnImp <$> ndefs.defs
-                        childrenImps <- traverse id $ getEnumImp <$> ndefs.children
-                        pure $ concatDefs fnImps ++ concatDefs childrenImps where
-                          concatDefs : List String -> String
-                          concatDefs = (foldr (\s => (s ++ "\n" ++)) "")
-
-  getEnumImp : (String, NestedDefs) -> Core String
-  getEnumImp (name, ndefs) = do defs <- getDefImps ndefs
-                                pure $ header name ++ defs ++ footer where
-                                  header : String -> String
-                                  header name = "enum " ++ name ++ " { "
-
-                                  footer : String
-                                  footer = " } "
-
 initNestedDefs : NestedDefs
 initNestedDefs = MkNestedDefs [] []
+
+mutual
+  ||| Get all implementations for things in the current scope.
+  ||| In the Swift backend, things are scoped with enums that
+  ||| work to create both module and namespace scopes.
+  getScopeImps : {default 0 indent : Nat } -> NestedDefs -> Core String
+  getScopeImps ndefs = do fnImps <- traverse id $ getImp {indent} <$> ndefs.defs
+                          childrenImps <- traverse id $ getEnumImp {indent} <$> ndefs.children
+                          pure $ concatDefs fnImps ++ concat childrenImps where
+                            concatDefs : List String -> String
+                            concatDefs = (foldr (\s => (s ++ "\n" ++)) "") 
+
+  getEnumImp : {default 0 indent : Nat} -> (String, NestedDefs) -> Core String
+  getEnumImp (name, ndefs) = do defs <- getScopeImps {indent=(indent + 4)} ndefs
+                                pure $ header name ++ defs ++ footer where
+                                  header : String -> String
+                                  header name = "\n" ++ indentation indent ++ "enum " ++ name ++ " {\n"
+
+                                  footer : String
+                                  footer = "\n" ++ indentation indent ++ "}"
 
 replaceValueOnKey : Eq k => (key : k) -> (replacement: a) -> List (k, a) -> List (k, a)
 replaceValueOnKey key replacement xs = map (\(k, v) => if k == key then (k, replacement) else (k, v)) xs
@@ -138,10 +155,16 @@ namespacedDefs = (foldr storeDef initNestedDefs) . (map namespacedDef)
 compileToSwift : Ref Ctxt Defs -> Term [] -> Core String
 compileToSwift c tm = do cdata <- getCompileData Cases tm
                          let ndefs = namespacedDefs $ namedDefs cdata
-                         getDefImps ndefs
+                         getScopeImps ndefs
                          -- defNames <- traverse id $ ?getImpH <$> ndefs
                          -- pure $ foldr (\s => (s ++ ", " ++)) "" defNames
                          -- ?hol
+
+data SwiftExec = Interp | Compiler
+
+findSwift : SwiftExec -> IO String
+findSwift Interp = pure "swift"
+findSwift Compiler = pure "swiftc"
 
 ||| Swift implementation of the `compileExpr` interface.
 compileExpr : Ref Ctxt Defs 
