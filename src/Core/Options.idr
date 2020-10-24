@@ -53,6 +53,7 @@ data CG = Chez
         | Gambit
         | Node
         | Javascript
+        | RefC
         | Swift
         | Other String
 
@@ -63,6 +64,7 @@ Eq CG where
   Gambit == Gambit = True
   Node == Node = True
   Javascript == Javascript = True
+  RefC == RefC = True
   Swift == Swift = True
   Other s == Other t = s == t
   _ == _ = False
@@ -74,6 +76,7 @@ Show CG where
   show Gambit = "gambit"
   show Node = "node"
   show Javascript = "javascript"
+  show RefC = "refc"
   show Swift = "swift"
   show (Other s) = s
 
@@ -167,6 +170,7 @@ availableCGs o
        ("racket", Racket),
        ("node", Node),
        ("javascript", Javascript),
+       ("refc", RefC),
        ("swift", Swift),
        ("gambit", Gambit)] ++ additionalCGs o
 

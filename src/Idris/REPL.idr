@@ -7,6 +7,7 @@ import Compiler.ES.Node
 import Compiler.ES.Javascript
 import Compiler.Swift
 import Compiler.Common
+import Compiler.RefC.RefC
 
 import Core.AutoSearch
 import Core.CaseTree
@@ -190,6 +191,7 @@ findCG
               Gambit => pure codegenGambit
               Node => pure codegenNode
               Javascript => pure codegenJavascript
+              RefC => pure codegenRefC
               Swift => pure codegenSwift
               Other s => case !(getCodegen s) of
                             Just cg => pure cg
