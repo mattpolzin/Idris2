@@ -287,11 +287,14 @@ compileToSwift c tm = do cdata <- getCompileData Cases tm
                              ++ imps ++ "\n\n"
                              ++ "func main() {}\n"
 
-data SwiftExec = Interp | Compiler
+||| The frontend is a wrapper around the compiler and other
+||| swift compiler utilities.
+data SwiftExec = Interp | Compiler | Frontend
 
 findSwift : SwiftExec -> IO String
 findSwift Interp = pure "swift"
 findSwift Compiler = pure "swiftc"
+findSwift Frontend = pure "swift"
 
 quoted : String -> String
 quoted s = "\"" ++ s ++ "\""
@@ -365,7 +368,6 @@ writeLibBridgeHeader headerDir libName = do let bridgeHeaderOut = headerDir </> 
                                             pure ()
                                             
 
-
 ||| Swift implementation of the `compileExpr` interface.
 compileExpr : Ref Ctxt Defs 
             -> (tmpDir : String) 
@@ -395,7 +397,17 @@ compileExpr c tmpDir outputDir tm outfile
          traverse_ id $ (writeLibModulemap sourceDir) <$> externalLibs
          traverse_ id $ (writeLibBridgeHeader headerDir) <$> externalLibs
 
-         pure (Just execOut)
+         swiftexec <- coreLift $ findSwift Frontend
+
+         -- TODO: add in additional lib directories to search in below command.
+         let compileCmd = "cd " ++ outputDir ++ " && " 
+                       ++ swiftexec ++ " build -Xswiftc -I -Xswiftc $(idris2 --libdir)/include"
+
+         coreLift $ putStrLn compileCmd
+         ok <- coreLift $ system compileCmd
+         if ok == 0
+            then pure (Just execOut)
+            else pure Nothing
 
 ||| Swift implementation of the `executeExpr` interface.
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
