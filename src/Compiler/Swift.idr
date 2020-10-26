@@ -134,29 +134,111 @@ addExternalLib extLib = do
         False => do
             put ExternalLibs (extLib :: libs)
 
+swiftTypeOfCFType : CFType -> Core String
+swiftTypeOfCFType CFUnit          = pure $ "Void"
+swiftTypeOfCFType CFInt           = pure $ "Int"
+swiftTypeOfCFType CFUnsigned8     = pure $ "UInt8"
+swiftTypeOfCFType CFUnsigned16    = pure $ "UInt16"
+swiftTypeOfCFType CFUnsigned32    = pure $ "UInt32"
+swiftTypeOfCFType CFUnsigned64    = pure $ "UInt64"
+swiftTypeOfCFType CFString        = pure $ "String"
+swiftTypeOfCFType CFDouble        = pure $ "Double"
+swiftTypeOfCFType CFChar          = pure $ "Char"
+swiftTypeOfCFType CFPtr           = pure $ "CFPtr"
+swiftTypeOfCFType CFGCPtr         = pure $ "CFGCPtr"
+swiftTypeOfCFType CFBuffer        = pure $ "CFBuffer"
+swiftTypeOfCFType CFWorld         = pure $ "CFWorld"
+swiftTypeOfCFType (CFFun x y)     = pure $ "CFFun"
+swiftTypeOfCFType (CFIORes x)     = pure $ "CFIORes"
+swiftTypeOfCFType (CFStruct x ys) = pure $ "CFStruct"
+swiftTypeOfCFType (CFUser x ys)   = pure $ "CFUser"
+
+||| Not all types get propogated down to the c FFI.
+||| Types that don't will return Nothing.
+cFFITypeOfCFType : CFType -> Core $ Maybe String
+cFFITypeOfCFType CFWorld          = pure $ Nothing
+cFFITypeOfCFType x                = pure $ Just !(swiftTypeOfCFType x)
+
+varNamesFromList : {0 ty : Type} -> List ty -> Nat -> Core (List String)
+varNamesFromList [] _ = pure []
+varNamesFromList (x :: xs) k = pure $ ("var_" ++ show k) :: !(varNamesFromList xs (S k))
+
+ffiArgList :  List CFType
+           -> Core $ List (String, String, CFType)
+ffiArgList cftypeList = do sList <- traverse cFFITypeOfCFType cftypeList
+                           varList <- varNamesFromList cftypeList 1
+                           let z = zip3 sList varList cftypeList
+                           pure $ catMaybes $ liftNulls <$> z where
+                             liftNulls : (Maybe String, String, CFType) -> Maybe (String, String, CFType)
+                             liftNulls (Just t, n, cft) = Just (t, n, cft)
+                             liftNulls (Nothing, _, _) = Nothing
+
+||| Given the results of ffiArgList, produce the invocation argument list.
+||| Invoking a la Swift without argument names (so just a comma separated list
+||| of argument names).
+cInvArgList : List (String, String, CFType) -> Core String
+cInvArgList args = pure $ concat $ intersperse ", " $ takeName <$> args where
+  takeName : (String, String, CFType) -> String
+  takeName (_, name, _) = name
+
+stringArgs : List (String, String, CFType) -> List String
+stringArgs args = (\(_, n, _) => n) <$> filter isString args where
+  isString : (String, String, CFType) -> Bool
+  isString (_, _, CFString) = True
+  isString (_, _, _) = False
+
+||| A Swift String must be wrapped in an unsafe pointer closure to be passed
+||| to a C function as char *.
+wrapStringForCChar :  { indent : Nat } 
+                   -> (varname : String) 
+                   -> (body : String) 
+                   -> String
+wrapStringForCChar varname body = indentation indent ++ varname ++ ".withCString { immutable_" ++ varname ++ " in \n"
+                               ++ indentation (indent + 4) ++ "let " ++ varname ++ " = UnsafeMutablePointer(mutating: immutable_" ++ varname ++ ")\n"
+                               ++ body
+                               ++ indentation indent ++ "\n}"
+
+||| The C invocation is built from both FFI args (i.e. the things from the Idris 2
+||| %foreign definition) and function args (the actual arguments passed on to the
+||| C function being called.
 getCInv :  { auto e : Ref ExternalLibs (List String) }
         -> { indent : Nat } 
-        -> (args : List String) 
+        -> (funcArgs : List CFType)
+        -> (ret : CFType)
+        -> (ffiArgs : List String) 
         -> Core String
-getCInv [] = throw $ InternalError "C foreign function invocations are expected to have at least one argument."
-getCInv (cname :: xs) = do case (head' xs) of 
-                             (Just libName) => addExternalLib libName
-                             Nothing => pure ()
-                           pure $ indentation indent ++ cname ++ "(/*args*/)"
+getCInv _ _ [] = throw $ InternalError "C foreign function invocations are expected to have at least one argument."
+getCInv funcArgs ret (cname :: xs) = do case (head' xs) of 
+                                          (Just libName) => addExternalLib libName
+                                          Nothing => pure ()
+                                        argList <- ffiArgList funcArgs
+                                        invocation <- pure $ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
+                                        wrappedInvocation <- pure $ foldr (wrapStringForCChar {indent}) invocation $ stringArgs argList
+                                        pure $ indentation indent 
+                                            ++ wrappedInvocation
 
 getForeignFnApp :  { auto e : Ref ExternalLibs (List String) }
                 -> { indent : Nat} 
                 -> (fname : String) 
+                -> (funcArgs : List CFType)
+                -> (ret : CFType)
                 -> List ForeignInv 
                 -> Core String
 -- for now, only handle C foreign invocations
-getForeignFnApp fname xs = case (find (\i => i.ffi == FgnC) xs) of
-                             Just inv => getCInv {indent} inv.args
-                             Nothing => pure $ "/* non-c FFI */"
+getForeignFnApp fname funcArgs ret xs = case (find (\i => i.ffi == FgnC) xs) of
+                                          Just inv => getCInv {indent} funcArgs ret inv.args 
+                                          Nothing => pure $ "/* non-c FFI */"
                         --     Nothing => throw $ 
                         --                  InternalError $ "Only supports C foreign functions currently. Found [" 
                         --                               ++ (concat $ show . (.ffi) <$> xs) 
                         --                               ++ "] for foreign function named " ++ fname
+
+||| Given the results of ffiArgList, produce the definition argument list.
+||| Argument list a la Swift without argument names.
+defArgList : List (String, String, CFType) -> Core String
+defArgList args = pure $ concat $ intersperse ", " $ takeNameAndType <$> args where
+  takeNameAndType : (String, String, CFType) -> String
+  takeNameAndType (type, name, _) = "_ " ++ name ++ ": " ++ type
 
 getForeignFnImp :  { auto e : Ref ExternalLibs (List String) }
                 -> { indent : Nat } 
@@ -165,8 +247,8 @@ getForeignFnImp :  { auto e : Ref ExternalLibs (List String) }
                 -> (ret : CFType) 
                 -> (invocations : List ForeignInv) 
                 -> Core String
-getForeignFnImp name args ret invocations = pure $ "func " ++ name ++ "(/*args*/)" ++ "{\n"
-                                                ++ !(getForeignFnApp {indent=(indent + 4)} name invocations)
+getForeignFnImp name args ret invocations = pure $ "static func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ")" ++ "{\n"
+                                                ++ !(getForeignFnApp {indent=(indent + 4)} name args ret invocations)
                                                 ++ "\n" ++ indentation indent ++ "}"
 
 ||| Given a function name, file context, and defintion,
@@ -268,6 +350,14 @@ underscored = pack . (replaceOn '-' '_') . unpack
 moduleName : (libName : String) -> String
 moduleName = capitalized . underscored
 
+||| Takes a library name and returns the linker name.
+||| For example, "libidris2_support" because "idris2_supprt"
+linkerName : (libName : String) -> String
+linkerName libName = lname $ unpack libName where
+  lname : List Char -> String
+  lname ('l' :: 'i' :: 'b' :: name) = pack name
+  lname name = pack name
+
 ||| Get the "import" lines that are needed at
 ||| the top of the main.swift file.
 getImports : (libNames : List String) -> Core String
@@ -335,7 +425,7 @@ getLibModulemap :  (libName : String)
                 -> Core String
 getLibModulemap libName = pure $ "module " ++ moduleName libName ++ " {\n"
                               ++ "header " ++ quoted (".." </> ".." </> "Headers" </> "bridge_" ++ (moduleName libName) ++ ".h") ++ "\n"
-                              ++ "link " ++ quoted libName ++ "\n"
+                              ++ "link " ++ (quoted $ linkerName libName) ++ "\n"
                               ++ "export *"
                               ++ "\n}"
 
@@ -366,7 +456,9 @@ writeLibBridgeHeader headerDir libName = do let bridgeHeaderOut = headerDir </> 
                                             Right () <- coreLift (writeFile bridgeHeaderOut bridgeHeader)
                                               | Left err => throw (FileErr bridgeHeaderOut err)
                                             pure ()
-                                            
+
+swiftPrelude : Core String
+swiftPrelude = pure $ "typealias CFWorld = String\n"
 
 ||| Swift implementation of the `compileExpr` interface.
 compileExpr : Ref Ctxt Defs 
@@ -386,7 +478,7 @@ compileExpr c tmpDir outputDir tm outfile
          
          newRef ExternalLibs []
 
-         swift <- compileToSwift c tm
+         swift <- pure $ !swiftPrelude ++ !(compileToSwift c tm)
          externalLibs <- get ExternalLibs
          packageManifest <- getPackageManifest externalLibs outfile
 
@@ -401,7 +493,9 @@ compileExpr c tmpDir outputDir tm outfile
 
          -- TODO: add in additional lib directories to search in below command.
          let compileCmd = "cd " ++ outputDir ++ " && " 
-                       ++ swiftexec ++ " build -Xswiftc -I -Xswiftc $(idris2 --libdir)/include"
+                       ++ swiftexec ++ " build"
+                       ++ " -Xswiftc -I -Xswiftc $(idris2 --libdir)/include"
+                       ++ " -Xlinker -L -Xlinker $(idris2 --libdir)/lib" 
 
          coreLift $ putStrLn compileCmd
          ok <- coreLift $ system compileCmd
