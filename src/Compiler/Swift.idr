@@ -195,8 +195,8 @@ wrapStringForCChar :  { indent : Nat }
                    -> String
 wrapStringForCChar varname body = indentation indent ++ varname ++ ".withCString { immutable_" ++ varname ++ " in \n"
                                ++ indentation (indent + 4) ++ "let " ++ varname ++ " = UnsafeMutablePointer(mutating: immutable_" ++ varname ++ ")\n"
-                               ++ body
-                               ++ indentation indent ++ "\n}"
+                               ++ indentation 4 ++ body
+                               ++ "\n" ++ indentation indent ++ "}"
 
 ||| The C invocation is built from both FFI args (i.e. the things from the Idris 2
 ||| %foreign definition) and function args (the actual arguments passed on to the
@@ -212,10 +212,9 @@ getCInv funcArgs ret (cname :: xs) = do case (head' xs) of
                                           (Just libName) => addExternalLib libName
                                           Nothing => pure ()
                                         argList <- ffiArgList funcArgs
-                                        invocation <- pure $ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
+                                        invocation <- pure $ indentation indent ++ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
                                         wrappedInvocation <- pure $ foldr (wrapStringForCChar {indent}) invocation $ stringArgs argList
-                                        pure $ indentation indent 
-                                            ++ wrappedInvocation
+                                        pure $ wrappedInvocation
 
 getForeignFnApp :  { auto e : Ref ExternalLibs (List String) }
                 -> { indent : Nat} 
