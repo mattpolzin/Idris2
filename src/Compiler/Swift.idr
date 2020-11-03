@@ -57,25 +57,42 @@ consumeNameComponent (MkNamespacedName (x :: xs) name) = Right (x, MkNamespacedN
 indentation : (quantity : Nat) -> String
 indentation quantity = pack $ replicate quantity ' '
 
-TODO : Core String
-TODO = pure "// TODO: "
+indentAmount : Nat
+indentAmount = 2
+
+||| Indent the given text block (which may contain newlines) by the
+||| indicated amount.
+|||
+||| The indent amount is the number of times to indent the block, not
+||| the total number of spaces to indent by. So, 2 == (2 * indentAmount).
+indentBlock : { default 1 indent : Nat } -> (textBlock : String) -> String
+indentBlock {indent} = recombine . toList . (split (== '\n'))
+  where
+    spaces : String
+    spaces = indentation $ indent * indentAmount
+
+    recombine : List String -> String
+    recombine = (spaces ++) . concat . (intersperse $ "\n" ++ spaces)
+
+swiftTodo : Core String
+swiftTodo = pure "// TODO: "
 
 getExprImp : NamedCExp -> Core String
-getExprImp orig@(NmLocal fc n) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmRef fc x) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmLam fc x y) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmLet fc x y z) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmApp fc x xs) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmCon fc x tag xs) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmOp fc x xs) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmExtPrim fc p xs) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmForce fc x) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmDelay fc x) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmConCase fc sc xs x) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmConstCase fc sc xs x) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmPrimVal fc x) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmErased fc) = pure $ !TODO ++ (show orig)
-getExprImp orig@(NmCrash fc x) = pure $ !TODO ++ (show orig)
+getExprImp orig@(NmLocal fc n) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmRef fc x) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmLam fc x y) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmLet fc x y z) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmApp fc x xs) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmCon fc x tag xs) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmOp fc x xs) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmExtPrim fc p xs) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmForce fc x) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmDelay fc x) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmConCase fc sc xs x) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmConstCase fc sc xs x) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmPrimVal fc x) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmErased fc) = pure $ !swiftTodo ++ (show orig)
+getExprImp orig@(NmCrash fc x) = pure $ !swiftTodo ++ (show orig)
 
 ||| A function definition already assumed to be
 ||| nested within any relevant namespaces.
@@ -93,17 +110,17 @@ Show FFI where
   show FgnSwift = "swift"
 
 Eq FFI where
-  (==) FgnC FgnC = True
-  (==) FgnNode FgnNode = True
+  (==) FgnC FgnC         = True
+  (==) FgnNode FgnNode   = True
   (==) FgnSwift FgnSwift = True
-  (==) _ _ = False
+  (==) _ _               = False
 
 ffiFromStr : String -> Maybe FFI
 ffiFromStr s = case s of
-                    "C" => Just FgnC
-                    "node" => Just FgnNode
+                    "C"     => Just FgnC
+                    "node"  => Just FgnNode
                     "swift" => Just FgnSwift
-                    _ => Nothing
+                    _       => Nothing
 
 record ForeignInv where
   constructor FInv
@@ -118,9 +135,9 @@ foreignInvs : List String -> List ForeignInv
 foreignInvs xs = catMaybes $ foreignInv <$> xs where
   foreignInv : String -> Maybe ForeignInv
   foreignInv s = let (ffiStr ::: rest) = split (== ':') s
-                     args = trim <$> (split (== ',') $ concat rest)
-                  in do ffi <- ffiFromStr ffiStr 
-                        pure $ FInv ffi $ toList args 
+                     args              = trim <$> (split (== ',') $ concat rest)
+                 in do ffi <- ffiFromStr ffiStr 
+                       pure $ FInv ffi $ toList args 
 
 data ExternalLibs : Type where
 
@@ -130,7 +147,7 @@ addExternalLib : {auto e : Ref ExternalLibs (List String)}
 addExternalLib extLib = do
     libs <- get ExternalLibs
     case elem extLib libs of
-        True => pure () -- library already in list
+        True  => pure () -- library already in list
         False => do
             put ExternalLibs (extLib :: libs)
 
@@ -155,23 +172,28 @@ swiftTypeOfCFType (CFUser x ys)   = pure $ "CFUser"
 
 ||| Not all types get propogated down to the c FFI.
 ||| Types that don't will return Nothing.
-cFFITypeOfCFType : CFType -> Core $ Maybe String
-cFFITypeOfCFType CFWorld          = pure $ Nothing
-cFFITypeOfCFType x                = pure $ Just !(swiftTypeOfCFType x)
+cFFITypeOfCFType :  CFType 
+                 -> Core $ Maybe String
+cFFITypeOfCFType CFWorld = pure $ Nothing
+cFFITypeOfCFType x       = pure $ Just !(swiftTypeOfCFType x)
 
-varNamesFromList : {0 ty : Type} -> List ty -> Nat -> Core (List String)
-varNamesFromList [] _ = pure []
-varNamesFromList (x :: xs) k = pure $ ("var_" ++ show k) :: !(varNamesFromList xs (S k))
+argNamesFromList :  { 0 ty : Type } 
+                 -> List ty 
+                 -> Nat 
+                 -> Core (List String)
+argNamesFromList [] _ = pure []
+argNamesFromList (x :: xs) k = pure $ ("arg_" ++ show k) :: !(argNamesFromList xs (S k))
 
 ffiArgList :  List CFType
            -> Core $ List (String, String, CFType)
 ffiArgList cftypeList = do sList <- traverse cFFITypeOfCFType cftypeList
-                           varList <- varNamesFromList cftypeList 1
+                           varList <- argNamesFromList cftypeList 1
                            let z = zip3 sList varList cftypeList
-                           pure $ catMaybes $ liftNulls <$> z where
-                             liftNulls : (Maybe String, String, CFType) -> Maybe (String, String, CFType)
-                             liftNulls (Just t, n, cft) = Just (t, n, cft)
-                             liftNulls (Nothing, _, _) = Nothing
+                           pure $ catMaybes $ liftNulls <$> z 
+  where
+    liftNulls : (Maybe String, String, CFType) -> Maybe (String, String, CFType)
+    liftNulls (Just t, n, cft) = Just (t, n, cft)
+    liftNulls (Nothing, _, _) = Nothing
 
 ||| Given the results of ffiArgList, produce the invocation argument list.
 ||| Invoking a la Swift without argument names (so just a comma separated list
@@ -189,20 +211,20 @@ stringArgs args = (\(_, n, _) => n) <$> filter isString args where
 
 ||| A Swift String must be wrapped in an unsafe pointer closure to be passed
 ||| to a C function as char *.
-wrapStringForCChar :  { indent : Nat } 
-                   -> (varname : String) 
+wrapStringForCChar :  (varname : String) 
                    -> (body : String) 
                    -> String
-wrapStringForCChar varname body = indentation indent ++ varname ++ ".withCString { immutable_" ++ varname ++ " in \n"
-                               ++ indentation (indent + 4) ++ "let " ++ varname ++ " = UnsafeMutablePointer(mutating: immutable_" ++ varname ++ ")\n"
-                               ++ indentation 4 ++ body
-                               ++ "\n" ++ indentation indent ++ "}"
+wrapStringForCChar varname body = varname ++ ".withCString { immutable_" ++ varname ++ " in \n"
+                               ++ indentBlock ( 
+                                    "let " ++ varname ++ " = UnsafeMutablePointer(mutating: immutable_" ++ varname ++ ")\n"
+                                  ++ body
+                                  )
+                               ++ "\n}"
 
 ||| The C invocation is built from both FFI args (i.e. the things from the Idris 2
 ||| %foreign definition) and function args (the actual arguments passed on to the
 ||| C function being called.
 getCInv :  { auto e : Ref ExternalLibs (List String) }
-        -> { indent : Nat } 
         -> (funcArgs : List CFType)
         -> (ret : CFType)
         -> (ffiArgs : List String) 
@@ -212,12 +234,11 @@ getCInv funcArgs ret (cname :: xs) = do case (head' xs) of
                                           (Just libName) => addExternalLib libName
                                           Nothing => pure ()
                                         argList <- ffiArgList funcArgs
-                                        invocation <- pure $ indentation indent ++ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
-                                        wrappedInvocation <- pure $ foldr (wrapStringForCChar {indent}) invocation $ stringArgs argList
+                                        invocation <- pure $ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
+                                        wrappedInvocation <- pure $ foldr wrapStringForCChar invocation $ stringArgs argList
                                         pure $ wrappedInvocation
 
 getForeignFnApp :  { auto e : Ref ExternalLibs (List String) }
-                -> { indent : Nat} 
                 -> (fname : String) 
                 -> (funcArgs : List CFType)
                 -> (ret : CFType)
@@ -225,7 +246,7 @@ getForeignFnApp :  { auto e : Ref ExternalLibs (List String) }
                 -> Core String
 -- for now, only handle C foreign invocations
 getForeignFnApp fname funcArgs ret xs = case (find (\i => i.ffi == FgnC) xs) of
-                                          Just inv => getCInv {indent} funcArgs ret inv.args 
+                                          Just inv => getCInv funcArgs ret inv.args 
                                           Nothing => pure $ "/* non-c FFI */"
                         --     Nothing => throw $ 
                         --                  InternalError $ "Only supports C foreign functions currently. Found [" 
@@ -240,15 +261,16 @@ defArgList args = pure $ concat $ intersperse ", " $ takeNameAndType <$> args wh
   takeNameAndType (type, name, _) = "_ " ++ name ++ ": " ++ type
 
 getForeignFnImp :  { auto e : Ref ExternalLibs (List String) }
-                -> { indent : Nat } 
                 -> (name : String) 
                 -> (args : List CFType) 
                 -> (ret : CFType) 
                 -> (invocations : List ForeignInv) 
                 -> Core String
-getForeignFnImp name args ret invocations = pure $ "static func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ")" ++ "{\n"
-                                                ++ !(getForeignFnApp {indent=(indent + 4)} name args ret invocations)
-                                                ++ "\n" ++ indentation indent ++ "}"
+getForeignFnImp name args ret invocations = pure $ "static func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ")" ++ " {\n"
+                                                ++ indentBlock (
+                                                    !(getForeignFnApp name args ret invocations)
+                                                  )
+                                                ++ "\n}"
 
 ||| Given a function name, file context, and defintion,
 ||| produce a Swift implementation.
@@ -262,19 +284,19 @@ getImp :  { auto e : Ref ExternalLibs (List String) }
 getImp def = getImp {indent} (def.name, def.fc, def.def) where
   getImp : {indent : Nat} -> (String, FC, NamedDef) -> Core String
   getImp (name, fc, MkNmFun args exp) =
-   pure $ indentation indent 
-       ++ !TODO 
-       ++ "fn " ++ name 
-       ++ concat (intersperse ", " $ show <$> args) 
-       ++ !(getExprImp exp) -- map (\s => "fn " ++ s) $ prettyName n -- FunDecl fc n args !(impExp True exp)
+    pure $ indentBlock {indent} $
+           !swiftTodo 
+        ++ "fn " ++ name 
+        ++ concat (intersperse ", " $ show <$> args) 
+        ++ !(getExprImp exp)
   getImp (name, fc, MkNmError exp) =
     throw $ (InternalError $ show exp)
   getImp (name, fc, MkNmForeign cs args ret) =
-    pure $ indentation indent ++ !(getForeignFnImp {indent} name args ret (foreignInvs cs))
+    pure $ indentBlock {indent} !(getForeignFnImp name args ret (foreignInvs cs))
   getImp (name, fc, MkNmCon tag arity nt) =
-    pure $ indentation indent 
-        ++ !TODO 
-        ++ "cns " ++ name ++ (show tag) ++ " arity: " ++ (show arity) ++ " nt: " ++ (show nt) -- map (\s => "constructor " ++ s) $ prettyName n -- DoNothing
+    pure $ indentBlock {indent}
+           !swiftTodo 
+        ++ "cns " ++ name ++ (show tag) ++ " arity: " ++ (show arity) ++ " nt: " ++ (show nt)
 
 ||| A hierarchy of function definitions
 ||| by namespace.
@@ -291,26 +313,26 @@ mutual
   ||| In the Swift backend, things are scoped with enums that
   ||| work to create both module and namespace scopes.
   getScopeImps :  { auto e : Ref ExternalLibs (List String) } 
-               -> { default 0 indent : Nat } 
                -> NestedDefs 
                -> Core String
-  getScopeImps ndefs = do fnImps <- traverse id $ getImp {indent} <$> ndefs.defs
-                          childrenImps <- traverse id $ getEnumImp {indent} <$> ndefs.children
+  getScopeImps ndefs = do fnImps <- traverse id $ getImp <$> ndefs.defs
+                          childrenImps <- traverse id $ getEnumImp <$> ndefs.children
                           pure $ concatDefs fnImps ++ concat childrenImps where
                             concatDefs : List String -> String
                             concatDefs = (foldr (\s => (s ++ "\n" ++)) "") 
 
   getEnumImp :  { auto e : Ref ExternalLibs (List String) } 
-             -> { default 0 indent : Nat } 
              -> (String, NestedDefs) 
              -> Core String
-  getEnumImp (name, ndefs) = do defs <- getScopeImps {indent=(indent + 4)} ndefs
-                                pure $ header name ++ defs ++ footer where
-                                  header : String -> String
-                                  header name = "\n" ++ indentation indent ++ "enum " ++ name ++ " {\n"
+  getEnumImp (name, ndefs) = do defs <- getScopeImps ndefs
+                                pure $ indentBlock $
+                                         header name ++ (indentBlock defs) ++ footer
+    where
+      header : String -> String
+      header name = "\n" ++ "enum " ++ name ++ " {\n"
 
-                                  footer : String
-                                  footer = "\n" ++ indentation indent ++ "}"
+      footer : String
+      footer = "\n}"
 
 replaceValueOnKey : Eq k => (key : k) -> (replacement: a) -> List (k, a) -> List (k, a)
 replaceValueOnKey key replacement xs = map (\(k, v) => if k == key then (k, replacement) else (k, v)) xs
