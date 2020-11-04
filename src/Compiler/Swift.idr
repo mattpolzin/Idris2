@@ -28,6 +28,70 @@ import Idris.Version
 import Utils.Hex
 import Utils.Path
 
+IdrisFunctionName : Type
+IdrisFunctionName = String
+
+data SwiftFunctionName = SwiftFnName String
+
+||| There are a few operator/function names from Idris
+||| that have hardcoded Swift alternatives.
+hardcodedFnNames : List (String, String)
+hardcodedFnNames = [
+  (">>=", "bind"),
+  ("<*>", "apply")
+]
+
+replaceHardcodedNames : String -> String
+replaceHardcodedNames n = foldr replaceName n hardcodedFnNames
+  where
+    replaceWithin : (find : List Char) -> (replace : List Char) -> (target : List Char) -> List Char
+    replaceWithin find replace [] = []
+    replaceWithin find replace target@(c :: cs) = if (isPrefixOf find target)
+                                                    then replace ++ replaceWithin find replace (drop (length find) target)
+                                                    else c :: (replaceWithin find replace cs)
+
+    replaceName : (String, String) -> String -> String
+    replaceName (find, replace) target = pack $ replaceWithin (unpack find) (unpack replace) (unpack target)
+
+isOperatorSpecialChar : Char -> Bool
+isOperatorSpecialChar = flip any specialChars . (flip apply)
+  where
+    isElem : List Char -> Char -> Bool
+    isElem = flip elem 
+
+    charBetween : (lower : Char) -> (upper : Char) -> Char -> Bool
+    charBetween lower upper c = c >= lower && c <= upper
+
+    ||| Special characters taken directly from Swift reference
+    ||| https://docs.swift.org/swift-book/ReferenceManual/zzSummaryOfTheGrammar.html
+    specialChars : List (Char -> Bool)
+    specialChars = [
+      isElem ['/', '=', '-', '+', '!', '*', '%', '<', '>', '&', '|', '^', '~', '?'],
+      isElem (chr <$> [0x00A1, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7]),
+      isElem (chr <$> [0x00A9, 0x00AB, 0x00AC, 0x00AE]),
+      isElem (chr <$> [0x00B0, 0x00B1, 0x00B6, 0x00BB, 0x00BF, 0x00D7, 0x00F7]),
+      isElem (chr <$> [0x2016, 0x2017, 0x2020, 0x2021, 0x2022, 0x2023, 0x2024, 0x2025, 0x2026, 0x2027, 0x3030]),
+      charBetween '‰' '‾',          -- 0x2030 - 0x203E
+      charBetween '⁁' '⁓',          -- 0x2041 - 0x2053
+      charBetween '⁕' '⁞',          -- 0x2055 - 0x205E
+      charBetween '←' (chr 0x23FF), -- 0x2190 - 0x23FF
+      charBetween '─' '❵',          -- 0x2500 - 0x2755
+      charBetween '➔' (chr 0x2BFF), -- 0x2794 – 0x2BFF
+      charBetween '⸀' (chr 0x2E7F), -- 0x2E00 – 0x2E7F
+      charBetween '、' '〃',        -- 0x3001 – 0x3003
+      charBetween '〈' '〠'         -- 0x3008 – 0x3020
+    ]
+
+||| apply any escaping needed to turn an Idris function name
+||| into a valid Swift function name
+swiftFnName : IdrisFunctionName -> SwiftFunctionName
+swiftFnName n with (unpack n)
+  swiftFnName n | [] = SwiftFnName $ replaceHardcodedNames n
+  swiftFnName n | (c :: _) = if (isOperatorSpecialChar c)
+                                 then SwiftFnName $ "op_" ++ replaceHardcodedNames n
+                                 else SwiftFnName $ replaceHardcodedNames n
+
+
 record NamespacedName where
   constructor MkNamespacedName
   path : List String -- unlike Namespace, stored in forward order.
@@ -98,7 +162,7 @@ getExprImp orig@(NmCrash fc x) = pure $ !swiftTodo ++ (show orig)
 ||| nested within any relevant namespaces.
 record LeafDef where
   constructor MkLeafDef
-  name : String
+  name : IdrisFunctionName
   fc   : FC
   def  : NamedDef
 
@@ -230,13 +294,14 @@ getCInv :  { auto e : Ref ExternalLibs (List String) }
         -> (ffiArgs : List String) 
         -> Core String
 getCInv _ _ [] = throw $ InternalError "C foreign function invocations are expected to have at least one argument."
-getCInv funcArgs ret (cname :: xs) = do case (head' xs) of 
-                                          (Just libName) => addExternalLib libName
-                                          Nothing => pure ()
-                                        argList <- ffiArgList funcArgs
-                                        invocation <- pure $ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
-                                        wrappedInvocation <- pure $ foldr wrapStringForCChar invocation $ stringArgs argList
-                                        pure $ wrappedInvocation
+getCInv funcArgs ret (cname :: xs) = 
+  do case (head' xs) of 
+       (Just libName) => addExternalLib libName
+       Nothing => pure ()
+     argList <- ffiArgList funcArgs
+     invocation <- pure $ cname ++ "(" ++ !(cInvArgList argList) ++ ")" 
+     wrappedInvocation <- pure $ foldr wrapStringForCChar invocation $ stringArgs argList
+     pure $ wrappedInvocation
 
 getForeignFnApp :  { auto e : Ref ExternalLibs (List String) }
                 -> (fname : String) 
@@ -261,16 +326,22 @@ defArgList args = pure $ concat $ intersperse ", " $ takeNameAndType <$> args wh
   takeNameAndType (type, name, _) = "_ " ++ name ++ ": " ++ type
 
 getForeignFnImp :  { auto e : Ref ExternalLibs (List String) }
-                -> (name : String) 
+                -> (name : SwiftFunctionName) 
                 -> (args : List CFType) 
                 -> (ret : CFType) 
                 -> (invocations : List ForeignInv) 
                 -> Core String
-getForeignFnImp name args ret invocations = pure $ "static func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ")" ++ " {\n"
-                                                ++ indentBlock (
-                                                    !(getForeignFnApp name args ret invocations)
-                                                  )
+getForeignFnImp (SwiftFnName name) args ret invocations = pure $ "static func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ") {\n"
+                                                ++ indentBlock !(getForeignFnApp name args ret invocations) 
                                                 ++ "\n}"
+
+getFnImp :  (name : SwiftFunctionName)
+         -> (argNames : List Name)
+         -> (exp : NamedCExp)
+         -> Core String
+getFnImp (SwiftFnName name) argNames exp = pure $ "static func " ++ name ++ "() {\n"
+                                 ++ indentBlock !(getExprImp exp)
+                                 ++ "\n}"
 
 ||| Given a function name, file context, and defintion,
 ||| produce a Swift implementation.
@@ -284,15 +355,11 @@ getImp :  { auto e : Ref ExternalLibs (List String) }
 getImp def = getImp {indent} (def.name, def.fc, def.def) where
   getImp : {indent : Nat} -> (String, FC, NamedDef) -> Core String
   getImp (name, fc, MkNmFun args exp) =
-    pure $ indentBlock {indent} $
-           !swiftTodo 
-        ++ "fn " ++ name 
-        ++ concat (intersperse ", " $ show <$> args) 
-        ++ !(getExprImp exp)
+    pure $ indentBlock {indent} !(getFnImp (swiftFnName name) args exp)
   getImp (name, fc, MkNmError exp) =
     throw $ (InternalError $ show exp)
   getImp (name, fc, MkNmForeign cs args ret) =
-    pure $ indentBlock {indent} !(getForeignFnImp name args ret (foreignInvs cs))
+    pure $ indentBlock {indent} !(getForeignFnImp (swiftFnName name) args ret (foreignInvs cs))
   getImp (name, fc, MkNmCon tag arity nt) =
     pure $ indentBlock {indent}
            !swiftTodo 
