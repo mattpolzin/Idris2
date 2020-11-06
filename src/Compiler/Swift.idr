@@ -7,6 +7,7 @@ import Compiler.ANF
 import Compiler.Inline
 
 import Core.Context
+import Core.Context.Log
 import Core.Directory
 import Core.Name
 import Core.Options
@@ -38,10 +39,43 @@ data SwiftFunctionName = SwiftFnName String
 hardcodedFnNames : List (String, String)
 hardcodedFnNames = [
   (">>=", "bind"),
-  ("<*>", "apply")
+  ("<*>", "apply"),
+  ("<$>", "map")
 ]
 
-replaceHardcodedNames : String -> String
+swiftTypeOfCFType : CFType -> Core String
+swiftTypeOfCFType CFUnit          = pure $ "Void"
+swiftTypeOfCFType CFInt           = pure $ "Int"
+swiftTypeOfCFType CFUnsigned8     = pure $ "UInt8"
+swiftTypeOfCFType CFUnsigned16    = pure $ "UInt16"
+swiftTypeOfCFType CFUnsigned32    = pure $ "UInt32"
+swiftTypeOfCFType CFUnsigned64    = pure $ "UInt64"
+swiftTypeOfCFType CFString        = pure $ "String"
+swiftTypeOfCFType CFDouble        = pure $ "Double"
+swiftTypeOfCFType CFChar          = pure $ "Char"
+swiftTypeOfCFType CFPtr           = pure $ "CFPtr"
+swiftTypeOfCFType CFGCPtr         = pure $ "CFGCPtr"
+swiftTypeOfCFType CFBuffer        = pure $ "CFBuffer"
+swiftTypeOfCFType CFWorld         = pure $ "CFWorld"
+swiftTypeOfCFType (CFFun x y)     = pure $ "CFFun"
+swiftTypeOfCFType (CFIORes x)     = pure $ "CFIORes"
+swiftTypeOfCFType (CFStruct x ys) = pure $ "CFStruct"
+swiftTypeOfCFType (CFUser x ys)   = pure $ "CFUser"
+
+swiftTypeOfTypeConstant : Constant -> Core $ Maybe String
+swiftTypeOfTypeConstant IntType     = pure $ Just "Int"
+swiftTypeOfTypeConstant IntegerType = pure $ Just "Int"
+swiftTypeOfTypeConstant Bits8Type   = pure $ Just "UInt8"
+swiftTypeOfTypeConstant Bits16Type  = pure $ Just "UInt16"
+swiftTypeOfTypeConstant Bits32Type  = pure $ Just "UInt32"
+swiftTypeOfTypeConstant Bits64Type  = pure $ Just "UInt64"
+swiftTypeOfTypeConstant StringType  = pure $ Just "String"
+swiftTypeOfTypeConstant CharType    = pure $ Just "Char"
+swiftTypeOfTypeConstant DoubleType  = pure $ Just "Double"
+swiftTypeOfTypeConstant WorldType   = pure $ Just "World"
+swiftTypeOfTypeConstant _ = pure $ Nothing
+
+replaceHardcodedNames : List Char -> List Char
 replaceHardcodedNames n = foldr replaceName n hardcodedFnNames
   where
     replaceWithin : (find : List Char) -> (replace : List Char) -> (target : List Char) -> List Char
@@ -50,8 +84,8 @@ replaceHardcodedNames n = foldr replaceName n hardcodedFnNames
                                                     then replace ++ replaceWithin find replace (drop (length find) target)
                                                     else c :: (replaceWithin find replace cs)
 
-    replaceName : (String, String) -> String -> String
-    replaceName (find, replace) target = pack $ replaceWithin (unpack find) (unpack replace) (unpack target)
+    replaceName : (String, String) -> List Char -> List Char
+    replaceName (find, replace) target = replaceWithin (unpack find) (unpack replace) target
 
 isOperatorSpecialChar : Char -> Bool
 isOperatorSpecialChar = flip any specialChars . (flip apply)
@@ -85,20 +119,63 @@ isOperatorSpecialChar = flip any specialChars . (flip apply)
 ||| apply any escaping needed to turn an Idris function name
 ||| into a valid Swift function name
 swiftFnName : IdrisFunctionName -> SwiftFunctionName
-swiftFnName n with (unpack n)
-  swiftFnName n | [] = SwiftFnName $ replaceHardcodedNames n
-  swiftFnName n | (c :: _) = if (isOperatorSpecialChar c)
-                                 then SwiftFnName $ "op_" ++ replaceHardcodedNames n
-                                 else SwiftFnName $ replaceHardcodedNames n
+swiftFnName = wrap . addOpPrefix . replaceDescriptiveChars . replaceHardcodedNames . unpack
+  where
+    wrap : List Char -> SwiftFunctionName
+    wrap = SwiftFnName . pack
 
+    replaceDescriptiveChar : Char -> Char
+    replaceDescriptiveChar ' ' = '_'
+    replaceDescriptiveChar c = c
+
+    replaceDescriptiveChars : List Char -> List Char
+    replaceDescriptiveChars [] = []
+    replaceDescriptiveChars (c :: cs) = replaceDescriptiveChar c :: replaceDescriptiveChars cs
+
+    addOpPrefix : List Char -> List Char
+    addOpPrefix []       = []
+    addOpPrefix n@(c :: _) = if (isOperatorSpecialChar c)
+                             then 'o' :: 'p' :: '_':: n
+                             else n
+
+SwiftFnTypes : Type
+SwiftFnTypes = List (Maybe String)
+
+typeForName : { auto ctx : Context } -> Name -> Core $ ClosedTerm
+typeForName n = do Just type <- lookupTyExact n ctx
+                     | Nothing => throw $ InternalError $ "Can't find type for " ++ (show n)
+                   pure type
+
+fnTypeFromBoundTerm :  { auto ctx : Context }
+                    -> { vars : _ } 
+                    -> Term vars 
+                    -> Core $ List (Maybe String)
+fnTypeFromBoundTerm (Bind fc x b scope) = pure $ (Just $ show $ !(full ctx $ binderType b)) :: !(fnTypeFromBoundTerm scope)
+fnTypeFromBoundTerm (PrimVal fc c) = pure $ [!(swiftTypeOfTypeConstant c)]
+fnTypeFromBoundTerm (Ref fc nt n) = pure $ [Just $ show !(full ctx n)]
+fnTypeFromBoundTerm (Meta _ _ _ _) = pure [Just "meta"]
+fnTypeFromBoundTerm (Local _ _ _ _) = pure [Just "local"]
+fnTypeFromBoundTerm (App _ _ _) = pure [Just "app"]
+fnTypeFromBoundTerm (Erased _ _) = pure [Just "erased"]
+fnTypeFromBoundTerm other = throw $ InternalError $ "Attempting to get bound term type from non-bind term." ++ (show other)
+
+fnTypeFromName :  { auto ctx : Context }
+               -> Name
+               -> Core $ List (Maybe String)
+fnTypeFromName n = fnTypeFromBoundTerm !(typeForName n)
+
+record SwiftDef where
+  constructor MkSwiftDef
+  def  : NamedDef
+  type : SwiftFnTypes
 
 record NamespacedName where
   constructor MkNamespacedName
   path : List String -- unlike Namespace, stored in forward order.
   name : String
 
-namespacedDef : (Name, FC, NamedDef) -> (NamespacedName, FC, NamedDef)
-namespacedDef (n, fc, nd) = (expandNS n, fc, nd) where
+namespacedDef : Context -> (Name, FC, NamedDef) -> Core (NamespacedName, FC, SwiftDef)
+namespacedDef ctx (n, fc, nd) = pure $ (expandNS n, fc, MkSwiftDef nd !(fnTypeFromName n)) where
   expandNS : Name -> NamespacedName
   expandNS (NS ns n) = record { path $= (reverse $ unsafeUnfoldNamespace ns ++) } (expandNS n)
   expandNS (UN str) = MkNamespacedName [] str
@@ -164,7 +241,7 @@ record LeafDef where
   constructor MkLeafDef
   name : IdrisFunctionName
   fc   : FC
-  def  : NamedDef
+  def  : SwiftDef
 
 data FFI = FgnC | FgnNode | FgnSwift
 
@@ -215,25 +292,6 @@ addExternalLib extLib = do
         False => do
             put ExternalLibs (extLib :: libs)
 
-swiftTypeOfCFType : CFType -> Core String
-swiftTypeOfCFType CFUnit          = pure $ "Void"
-swiftTypeOfCFType CFInt           = pure $ "Int"
-swiftTypeOfCFType CFUnsigned8     = pure $ "UInt8"
-swiftTypeOfCFType CFUnsigned16    = pure $ "UInt16"
-swiftTypeOfCFType CFUnsigned32    = pure $ "UInt32"
-swiftTypeOfCFType CFUnsigned64    = pure $ "UInt64"
-swiftTypeOfCFType CFString        = pure $ "String"
-swiftTypeOfCFType CFDouble        = pure $ "Double"
-swiftTypeOfCFType CFChar          = pure $ "Char"
-swiftTypeOfCFType CFPtr           = pure $ "CFPtr"
-swiftTypeOfCFType CFGCPtr         = pure $ "CFGCPtr"
-swiftTypeOfCFType CFBuffer        = pure $ "CFBuffer"
-swiftTypeOfCFType CFWorld         = pure $ "CFWorld"
-swiftTypeOfCFType (CFFun x y)     = pure $ "CFFun"
-swiftTypeOfCFType (CFIORes x)     = pure $ "CFIORes"
-swiftTypeOfCFType (CFStruct x ys) = pure $ "CFStruct"
-swiftTypeOfCFType (CFUser x ys)   = pure $ "CFUser"
-
 ||| Not all types get propogated down to the c FFI.
 ||| Types that don't will return Nothing.
 cFFITypeOfCFType :  CFType 
@@ -248,30 +306,50 @@ argNamesFromList :  { 0 ty : Type }
 argNamesFromList [] _ = pure []
 argNamesFromList (x :: xs) k = pure $ ("arg_" ++ show k) :: !(argNamesFromList xs (S k))
 
+record FunctionArgument where
+  constructor FnArgument
+  typeName, argName : String
+  cfType : CFType
+
 ffiArgList :  List CFType
-           -> Core $ List (String, String, CFType)
-ffiArgList cftypeList = do sList <- traverse cFFITypeOfCFType cftypeList
-                           varList <- argNamesFromList cftypeList 1
-                           let z = zip3 sList varList cftypeList
-                           pure $ catMaybes $ liftNulls <$> z 
-  where
-    liftNulls : (Maybe String, String, CFType) -> Maybe (String, String, CFType)
-    liftNulls (Just t, n, cft) = Just (t, n, cft)
-    liftNulls (Nothing, _, _) = Nothing
+           -> Core $ List FunctionArgument
+ffiArgList cftypeList = 
+  do typeNameList <- traverse cFFITypeOfCFType cftypeList
+     varList      <- argNamesFromList cftypeList 1
+     let triples = zip3 typeNameList varList cftypeList
+     let nonNulls = catMaybes $ liftNulls <$> triples
+     pure $ (\(x,y,z) => FnArgument x y z) <$> nonNulls
+    where
+      liftNulls : (Maybe String, String, CFType) -> Maybe (String, String, CFType)
+      liftNulls (Just t, n, cft) = Just (t, n, cft)
+      liftNulls (Nothing, _, _) = Nothing
+
+idrisArgList :  (types : SwiftFnTypes)
+             -> List Name
+             -> Core $ List FunctionArgument
+idrisArgList types argNames = 
+  do varList <- pure $ show <$> argNames
+     let triples = zip3 types varList ((const CFString) <$> argNames)
+     let nonNulls = catMaybes $ liftNulls <$> triples
+     pure $ (\(x,y,z) => FnArgument x y CFString) <$> nonNulls
+    where
+      liftNulls : (Maybe String, String, CFType) -> Maybe (String, String, CFType)
+      liftNulls (Just t, n, cft) = Just (t, n, cft)
+      liftNulls (Nothing, _, _) = Nothing
 
 ||| Given the results of ffiArgList, produce the invocation argument list.
 ||| Invoking a la Swift without argument names (so just a comma separated list
 ||| of argument names).
-cInvArgList : List (String, String, CFType) -> Core String
+cInvArgList : List FunctionArgument -> Core String
 cInvArgList args = pure $ concat $ intersperse ", " $ takeName <$> args where
-  takeName : (String, String, CFType) -> String
-  takeName (_, name, _) = name
+  takeName : FunctionArgument -> String
+  takeName (FnArgument _ name _) = name
 
-stringArgs : List (String, String, CFType) -> List String
-stringArgs args = (\(_, n, _) => n) <$> filter isString args where
-  isString : (String, String, CFType) -> Bool
-  isString (_, _, CFString) = True
-  isString (_, _, _) = False
+stringArgs : List FunctionArgument -> List String
+stringArgs args = (\(FnArgument _ n _) => n) <$> filter isString args where
+  isString : FunctionArgument -> Bool
+  isString (FnArgument _ _ CFString) = True
+  isString (FnArgument _ _ _)        = False
 
 ||| A Swift String must be wrapped in an unsafe pointer closure to be passed
 ||| to a C function as char *.
@@ -320,28 +398,37 @@ getForeignFnApp fname funcArgs ret xs = case (find (\i => i.ffi == FgnC) xs) of
 
 ||| Given the results of ffiArgList, produce the definition argument list.
 ||| Argument list a la Swift without argument names.
-defArgList : List (String, String, CFType) -> Core String
+defArgList : List FunctionArgument -> Core String
 defArgList args = pure $ concat $ intersperse ", " $ takeNameAndType <$> args where
-  takeNameAndType : (String, String, CFType) -> String
-  takeNameAndType (type, name, _) = "_ " ++ name ++ ": " ++ type
+  takeNameAndType : FunctionArgument -> String
+  takeNameAndType (FnArgument type name _) = "_ " ++ name ++ ": " ++ type
+
+staticAnnot : (global : Bool) -> String
+staticAnnot global = if global then "" else "static "
 
 getForeignFnImp :  { auto e : Ref ExternalLibs (List String) }
+                -> (global : Bool) -- if true, expected to be globally scoped
                 -> (name : SwiftFunctionName) 
                 -> (args : List CFType) 
                 -> (ret : CFType) 
                 -> (invocations : List ForeignInv) 
                 -> Core String
-getForeignFnImp (SwiftFnName name) args ret invocations = pure $ "static func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ") {\n"
-                                                ++ indentBlock !(getForeignFnApp name args ret invocations) 
-                                                ++ "\n}"
+getForeignFnImp global (SwiftFnName name) args ret invocations = 
+  pure $ (staticAnnot global) ++ "func " ++ name ++ "(" ++ !(defArgList !(ffiArgList args)) ++ ") {\n"
+      ++ indentBlock !(getForeignFnApp name args ret invocations) 
+      ++ "\n}"
 
-getFnImp :  (name : SwiftFunctionName)
+getFnImp :  (global : Bool) -- if true, function is scoped globally
+         -> (name : SwiftFunctionName)
+         -> (types : SwiftFnTypes)
          -> (argNames : List Name)
          -> (exp : NamedCExp)
          -> Core String
-getFnImp (SwiftFnName name) argNames exp = pure $ "static func " ++ name ++ "() {\n"
-                                 ++ indentBlock !(getExprImp exp)
-                                 ++ "\n}"
+getFnImp global (SwiftFnName name) types argNames exp = 
+  pure $ (staticAnnot global) ++ "func " ++ name ++ "(" ++ !(defArgList !(idrisArgList types argNames)) ++ ") {\n"
+      ++ indentBlock ("// " ++ show types)
+      ++ indentBlock !(getExprImp exp)
+      ++ "\n}"
 
 ||| Given a function name, file context, and defintion,
 ||| produce a Swift implementation.
@@ -350,20 +437,25 @@ getFnImp (SwiftFnName name) argNames exp = pure $ "static func " ++ name ++ "() 
 ||| scope the function will be defined within.
 getImp :  { auto e : Ref ExternalLibs (List String) }
        -> { default 0 indent : Nat } 
+       -> (global : Bool) -- if true, expected to be globally scoped
        -> LeafDef 
        -> Core String 
-getImp def = getImp {indent} (def.name, def.fc, def.def) where
-  getImp : {indent : Nat} -> (String, FC, NamedDef) -> Core String
-  getImp (name, fc, MkNmFun args exp) =
-    pure $ indentBlock {indent} !(getFnImp (swiftFnName name) args exp)
-  getImp (name, fc, MkNmError exp) =
-    throw $ (InternalError $ show exp)
-  getImp (name, fc, MkNmForeign cs args ret) =
-    pure $ indentBlock {indent} !(getForeignFnImp (swiftFnName name) args ret (foreignInvs cs))
-  getImp (name, fc, MkNmCon tag arity nt) =
-    pure $ indentBlock {indent}
-           !swiftTodo 
-        ++ "cns " ++ name ++ (show tag) ++ " arity: " ++ (show arity) ++ " nt: " ++ (show nt)
+getImp global (MkLeafDef name fc (MkSwiftDef def type)) = getImp' name fc type def 
+  where
+    getImp' : (name: String) -> FC -> (types : SwiftFnTypes) -> (def : NamedDef) ->  Core String
+    getImp' name fc types (MkNmFun args exp) =
+      pure $ indentBlock {indent} !(getFnImp global (swiftFnName name) types args exp)
+
+    getImp' name fc types (MkNmError exp) =
+      throw $ (InternalError $ show exp)
+
+    getImp' name fc types (MkNmForeign cs args ret) =
+      pure $ indentBlock {indent} !(getForeignFnImp global (swiftFnName name) args ret (foreignInvs cs))
+
+    getImp' name fc types (MkNmCon tag arity nt) =
+      pure $ indentBlock {indent}
+             !swiftTodo 
+          ++ "cns " ++ name ++ (show tag) ++ " arity: " ++ (show arity) ++ " nt: " ++ (show nt)
 
 ||| A hierarchy of function definitions
 ||| by namespace.
@@ -380,20 +472,22 @@ mutual
   ||| In the Swift backend, things are scoped with enums that
   ||| work to create both module and namespace scopes.
   getScopeImps :  { auto e : Ref ExternalLibs (List String) } 
+               -> (global : Bool) -- true if the scope is global (only the root scope is).
                -> NestedDefs 
                -> Core String
-  getScopeImps ndefs = do fnImps <- traverse id $ getImp <$> ndefs.defs
-                          childrenImps <- traverse id $ getEnumImp <$> ndefs.children
-                          pure $ concatDefs fnImps ++ concat childrenImps where
-                            concatDefs : List String -> String
-                            concatDefs = (foldr (\s => (s ++ "\n" ++)) "") 
+  getScopeImps global ndefs = 
+    do fnImps       <- traverse id $ (getImp global) <$> ndefs.defs
+       childrenImps <- traverse id $  getEnumImp     <$> ndefs.children
 
-  getEnumImp :  { auto e : Ref ExternalLibs (List String) } 
+       pure $ concatDefs fnImps ++ concat childrenImps where
+         concatDefs : List String -> String
+         concatDefs = (foldr (\s => (s ++ "\n" ++)) "") 
+
+  getEnumImp :  { auto e : Ref ExternalLibs (List String) }
              -> (String, NestedDefs) 
              -> Core String
-  getEnumImp (name, ndefs) = do defs <- getScopeImps ndefs
-                                pure $ indentBlock $
-                                         header name ++ (indentBlock defs) ++ footer
+  getEnumImp (name, ndefs) = do defs <- getScopeImps False ndefs
+                                pure $ indentBlock $ header name ++ (indentBlock defs) ++ footer
     where
       header : String -> String
       header name = "\n" ++ "enum " ++ name ++ " {\n"
@@ -406,23 +500,26 @@ replaceValueOnKey key replacement xs = map (\(k, v) => if k == key then (k, repl
 
 mutual
   storeChildDef : (key : String) 
-                -> (NamespacedName, FC, NamedDef) 
+                -> (NamespacedName, FC, SwiftDef) 
                 -> List (String, NestedDefs) 
                 -> List (String, NestedDefs)
-  storeChildDef key def children = case (lookup key children) of
-                                        Nothing => (key, storeDef def initNestedDefs) :: children
-                                        (Just nd) => replaceValueOnKey key (storeDef def nd) children
+  storeChildDef key def children = 
+    case (lookup key children) of
+      Nothing   => (key, storeDef def initNestedDefs) :: children
+      (Just nd) => replaceValueOnKey key (storeDef def nd) children
 
-  storeDef : (NamespacedName, FC, NamedDef) -> NestedDefs -> NestedDefs
-  storeDef (nsn, fc, nd) acc = case (consumeNameComponent nsn) of
-                                    (Left name) => record { defs $= ((MkLeafDef name fc nd) ::) } acc
-                                    (Right (path, rest)) => record { children $= (storeChildDef path (rest, fc, nd)) } acc
+  storeDef : (NamespacedName, FC, SwiftDef) -> NestedDefs -> NestedDefs
+  storeDef (nsn, fc, sd) acc = 
+    case (consumeNameComponent nsn) of
+      (Left name)          => record { defs $= ((MkLeafDef name fc sd) ::) } acc
+      (Right (path, rest)) => record { children $= (storeChildDef path (rest, fc, sd)) } acc
 
 ||| Group all function definitions by namespace
 ||| in a nested fashion so that we can export the
 ||| swift definitions in nested enums.
-namespacedDefs : List (Name, FC, NamedDef) -> NestedDefs
-namespacedDefs = (foldr storeDef initNestedDefs) . (map namespacedDef)
+namespacedDefs : Context -> List (Name, FC, NamedDef) -> Core NestedDefs
+namespacedDefs ctx defs = do nds <- traverse id $ namespacedDef ctx <$> defs
+                             pure (foldr storeDef initNestedDefs nds) 
 
 capitalized : String -> String
 capitalized x = pack $ capitalFirst (unpack x) where
@@ -457,8 +554,18 @@ compileToSwift :  { auto e : Ref ExternalLibs (List String) }
                -> Term [] 
                -> Core String
 compileToSwift c tm = do cdata <- getCompileData Cases tm
-                         let ndefs = namespacedDefs $ namedDefs cdata
-                         imps <- getScopeImps ndefs
+                         defs <- get Ctxt
+                         ndefs <- namespacedDefs defs.gamma cdata.namedDefs 
+                         --
+                         let ctx = defs.gamma
+                         allns <- allNames ctx
+                         case (head' allns) of
+                              Just n => do tmp <- typeForName n 
+                                           tyNames <- fnTypeFromBoundTerm tmp
+                                           log "swft" 1 $ (show n) ++ "   " ++ (show tyNames)
+                              Nothing => pure ()
+                         --
+                         imps <- getScopeImps True ndefs
                          libs <- get ExternalLibs
                          imports <- getImports libs
                          pure $ imports ++ "\n\n"
@@ -497,36 +604,39 @@ packageLibTarget libName = ".systemLibrary(name: " ++ (quoted $ moduleName libNa
 getPackageManifest :  (externalLibs : List String) 
                    -> (target : String) 
                    -> Core String
-getPackageManifest externalLibs target = pure $ "// swift-tools-version:5.1\n\n"
-                                             ++ "import PackageDescription \n\n"
-                                             ++ "let package = Package(\nname: " ++ (quoted $ moduleName target) ++ ",\n"
-                                             ++ "products: [\n" 
-                                             ++ packageExecProduct target ++ ",\n"
-                                             ++ (concat $ intersperse ", \n" $ packageLibProduct <$> externalLibs) 
-                                             ++ "],\n"
-                                             ++ "targets: [\n"
-                                             ++ packageTarget target externalLibs ++ ",\n"
-                                             ++ (concat $ intersperse ", \n" $ packageLibTarget <$> externalLibs)
-                                             ++ "]\n)\n"
+getPackageManifest externalLibs target = 
+  pure $ "// swift-tools-version:5.1\n\n"
+      ++ "import PackageDescription \n\n"
+      ++ "let package = Package(\nname: " ++ (quoted $ moduleName target) ++ ",\n"
+      ++ "products: [\n" 
+      ++ packageExecProduct target ++ ",\n"
+      ++ (concat $ intersperse ", \n" $ packageLibProduct <$> externalLibs) 
+      ++ "],\n"
+      ++ "targets: [\n"
+      ++ packageTarget target externalLibs ++ ",\n"
+      ++ (concat $ intersperse ", \n" $ packageLibTarget <$> externalLibs)
+      ++ "]\n)\n"
 
 getLibModulemap :  (libName : String)
                 -> Core String
-getLibModulemap libName = pure $ "module " ++ moduleName libName ++ " {\n"
-                              ++ "header " ++ quoted (".." </> ".." </> "Headers" </> "bridge_" ++ (moduleName libName) ++ ".h") ++ "\n"
-                              ++ "link " ++ (quoted $ linkerName libName) ++ "\n"
-                              ++ "export *"
-                              ++ "\n}"
+getLibModulemap libName = 
+  pure $ "module " ++ moduleName libName ++ " {\n"
+      ++ "header " ++ quoted (".." </> ".." </> "Headers" </> "bridge_" ++ (moduleName libName) ++ ".h") ++ "\n"
+      ++ "link " ++ (quoted $ linkerName libName) ++ "\n"
+      ++ "export *"
+      ++ "\n}"
 
 writeLibModulemap :  (sourceDir : String)
                   -> (libName : String)
                   -> Core ()
-writeLibModulemap sourceDir libName = do let libSourceDir = sourceDir </> moduleName libName
-                                         coreLift $ mkdirAll libSourceDir
-                                         let modulemapOut = libSourceDir </> "module.modulemap"
-                                         modulemap <- getLibModulemap libName
-                                         Right () <- coreLift (writeFile modulemapOut modulemap)
-                                           | Left err => throw (FileErr modulemapOut err)
-                                         pure ()
+writeLibModulemap sourceDir libName = 
+  do let libSourceDir = sourceDir </> moduleName libName
+     coreLift $ mkdirAll libSourceDir
+     let modulemapOut = libSourceDir </> "module.modulemap"
+     modulemap <- getLibModulemap libName
+     Right () <- coreLift (writeFile modulemapOut modulemap)
+       | Left err => throw (FileErr modulemapOut err)
+     pure ()
 
 builtinHeaderTranslation : (libName : String) -> String
 builtinHeaderTranslation "libidris2_support" = "idris_support"
@@ -539,11 +649,12 @@ getLibBridgeHeader libName = pure $ "#include <" ++ builtinHeaderTranslation lib
 writeLibBridgeHeader :  (headerDir : String)
                      -> (libName : String)
                      -> Core ()
-writeLibBridgeHeader headerDir libName = do let bridgeHeaderOut = headerDir </> "bridge_" ++ (moduleName libName) ++ ".h"
-                                            bridgeHeader <- getLibBridgeHeader libName
-                                            Right () <- coreLift (writeFile bridgeHeaderOut bridgeHeader)
-                                              | Left err => throw (FileErr bridgeHeaderOut err)
-                                            pure ()
+writeLibBridgeHeader headerDir libName = 
+  do let bridgeHeaderOut = headerDir </> "bridge_" ++ (moduleName libName) ++ ".h"
+     bridgeHeader <- getLibBridgeHeader libName
+     Right () <- coreLift (writeFile bridgeHeaderOut bridgeHeader)
+       | Left err => throw (FileErr bridgeHeaderOut err)
+     pure ()
 
 swiftPrelude : Core String
 swiftPrelude = pure $ "typealias CFWorld = String\n"
@@ -555,41 +666,41 @@ compileExpr : Ref Ctxt Defs
             -> ClosedTerm 
             -> (outfile : String) 
             -> Core (Maybe String)
-compileExpr c tmpDir outputDir tm outfile
-    = do let sourceDir = outputDir </> "Sources"
-         let headerDir = outputDir </> "Headers"
-         let targetSourceDir = sourceDir </> moduleName outfile
-         let execOut = targetSourceDir </> "main.swift"
-         let manifestOut = outputDir </> "Package.swift"
-         coreLift $ mkdirAll targetSourceDir
-         coreLift $ mkdirAll headerDir
-         
-         newRef ExternalLibs []
+compileExpr c tmpDir outputDir tm outfile =
+  do let sourceDir = outputDir </> "Sources"
+     let headerDir = outputDir </> "Headers"
+     let targetSourceDir = sourceDir </> moduleName outfile
+     let execOut = targetSourceDir </> "main.swift"
+     let manifestOut = outputDir </> "Package.swift"
+     coreLift $ mkdirAll targetSourceDir
+     coreLift $ mkdirAll headerDir
+     
+     newRef ExternalLibs []
 
-         swift <- pure $ !swiftPrelude ++ !(compileToSwift c tm)
-         externalLibs <- get ExternalLibs
-         packageManifest <- getPackageManifest externalLibs outfile
+     swift <- pure $ !swiftPrelude ++ !(compileToSwift c tm)
+     externalLibs <- get ExternalLibs
+     packageManifest <- getPackageManifest externalLibs outfile
 
-         Right () <- coreLift (writeFile execOut swift)
-            | Left err => throw (FileErr execOut err)
-         Right () <- coreLift (writeFile manifestOut packageManifest)
-            | Left err => throw (FileErr manifestOut err)
-         traverse_ id $ (writeLibModulemap sourceDir) <$> externalLibs
-         traverse_ id $ (writeLibBridgeHeader headerDir) <$> externalLibs
+     Right () <- coreLift (writeFile execOut swift)
+        | Left err => throw (FileErr execOut err)
+     Right () <- coreLift (writeFile manifestOut packageManifest)
+        | Left err => throw (FileErr manifestOut err)
+     traverse_ id $ (writeLibModulemap sourceDir) <$> externalLibs
+     traverse_ id $ (writeLibBridgeHeader headerDir) <$> externalLibs
 
-         swiftexec <- coreLift $ findSwift Frontend
+     swiftexec <- coreLift $ findSwift Frontend
 
-         -- TODO: add in additional lib directories to search in below command.
-         let compileCmd = "cd " ++ outputDir ++ " && " 
-                       ++ swiftexec ++ " build"
-                       ++ " -Xswiftc -I -Xswiftc $(idris2 --libdir)/include"
-                       ++ " -Xlinker -L -Xlinker $(idris2 --libdir)/lib" 
+     -- TODO: add in additional lib directories to search in below command.
+     let compileCmd = "cd " ++ outputDir ++ " && " 
+                   ++ swiftexec ++ " build"
+                   ++ " -Xswiftc -I -Xswiftc $(idris2 --libdir)/include"
+                   ++ " -Xlinker -L -Xlinker $(idris2 --libdir)/lib" 
 
-         coreLift $ putStrLn compileCmd
-         ok <- coreLift $ system compileCmd
-         if ok == 0
-            then pure (Just execOut)
-            else pure Nothing
+     coreLift $ putStrLn compileCmd
+     ok <- coreLift $ system compileCmd
+     if ok == 0
+        then pure (Just execOut)
+        else pure Nothing
 
 ||| Swift implementation of the `executeExpr` interface.
 executeExpr : Ref Ctxt Defs -> (tmpDir : String) -> ClosedTerm -> Core ()
