@@ -141,6 +141,8 @@ swiftFnName = wrap . addOpPrefix . replaceDescriptiveChars . replaceHardcodedNam
 SwiftFnTypes : Type
 SwiftFnTypes = List (Maybe String)
 
+
+
 typeForName : { auto ctx : Context } -> Name -> Core $ ClosedTerm
 typeForName n = do Just type <- lookupTyExact n ctx
                      | Nothing => throw $ InternalError $ "Can't find type for " ++ (show n)
@@ -154,9 +156,11 @@ fnTypeFromBoundTerm (Bind fc x b scope) = pure $ (Just $ show $ !(full ctx $ bin
 fnTypeFromBoundTerm (PrimVal fc c) = pure $ [!(swiftTypeOfTypeConstant c)]
 fnTypeFromBoundTerm (Ref fc nt n) = pure $ [Just $ show !(full ctx n)]
 fnTypeFromBoundTerm (Meta _ _ _ _) = pure [Just "meta"]
-fnTypeFromBoundTerm (Local _ _ _ _) = pure [Just "local"]
+fnTypeFromBoundTerm orig@(Local _ _ _ _) = pure [Just $ "local" ++ (show orig)]
 fnTypeFromBoundTerm (App _ _ _) = pure [Just "app"]
 fnTypeFromBoundTerm (Erased _ _) = pure [Just "erased"]
+fnTypeFromBoundTerm (TType fc) = pure [Just "ttype"]
+fnTypeFromBoundTerm (TDelayed fc reason tm) = pure [Just "delayed"]
 fnTypeFromBoundTerm other = throw $ InternalError $ "Attempting to get bound term type from non-bind term." ++ (show other)
 
 fnTypeFromName :  { auto ctx : Context }
