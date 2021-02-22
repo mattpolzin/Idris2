@@ -46,3 +46,5 @@ jobs:
           scheme --version
       - name: Bootstrap and install
         run: c:\msys64\usr\bin\bash -l -c "cd $env:PWD && make bootstrap && make install"
+      - name: Test
+        run: c:\msys64\usr\bin\bash -l -c "cd $env:PWD && make test"
