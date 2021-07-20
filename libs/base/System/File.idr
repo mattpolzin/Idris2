@@ -61,7 +61,7 @@ prim__flush : FilePtr -> PrimIO Int
 %foreign support "idris2_popen"
 prim__popen : String -> String -> PrimIO FilePtr
 %foreign support "idris2_pclose"
-prim__pclose : FilePtr -> PrimIO ()
+prim__pclose : FilePtr -> PrimIO Int
 
 %foreign support "idris2_removeFile"
 prim__removeFile : String -> PrimIO Int
@@ -247,6 +247,8 @@ fflush : HasIO io => (h : File) -> io ()
 fflush (FHandle f)
     = ignore $ primIO (prim__flush f)
 
+||| Run a command and pipe the output of that command to
+||| the file handle returned if successful.
 export
 popen : HasIO io => String -> Mode -> io (Either FileError File)
 popen f m = do
@@ -255,8 +257,11 @@ popen f m = do
         then returnError
         else pure (Right (FHandle ptr))
 
+||| Close a pipe opened using popen. The exit status of
+||| the process that was being piped into the given file is
+||| returned.
 export
-pclose : HasIO io => File -> io ()
+pclose : HasIO io => File -> io Int
 pclose (FHandle h) = primIO (prim__pclose h)
 
 export

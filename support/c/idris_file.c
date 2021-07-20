@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -91,13 +92,31 @@ void *idris2_popen(const char *cmd, const char *mode) {
     return f;
 }
 
-void idris2_pclose(void *stream) {
+int idris2_pclose(void *stream) {
 #ifdef _WIN32
     int r = _pclose(stream);
 #else
     int r = pclose(stream);
 #endif
     IDRIS2_VERIFY(r != -1, "pclose failed");
+    // returns exit status of the process that fed the pipe.
+#ifndef _WIN32
+    if (WIFEXITED(r)) {
+      return WEXITSTATUS(r);
+    } else if (WIFSIGNALED(r)) {
+      return WTERMSIG(r);
+    } else if (WIFSTOPPED(r)) {
+      return WSTOPSIG(r);
+#ifdef WIFCONTINUED     /* Not all implementations support this */
+    } else if (WIFCONTINUED(r)) {
+      return 0;
+#endif
+    }
+    /* Non-standard case -- may never happen */
+    return r;
+#else
+    return r;
+#endif
 }
 
 // seek through the next newline, consuming and
