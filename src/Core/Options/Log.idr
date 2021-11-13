@@ -118,6 +118,7 @@ knownTopics = [
     ("ide-mode.send", Nothing),
     ("import", Nothing),
     ("import.file", Nothing),
+    ("import.used", Just "Log messages when an import is used."),
     ("interaction.casesplit", Nothing),
     ("interaction.generate", Nothing),
     ("interaction.search", Nothing),

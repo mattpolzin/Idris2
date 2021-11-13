@@ -40,6 +40,7 @@ import Idris.Doc.String
 import Data.List
 import Libraries.Data.NameMap
 import Libraries.Data.SortedMap
+import Libraries.Data.SortedSet
 import Libraries.Utils.Path
 
 import System
@@ -266,6 +267,18 @@ findCG
     = do defs <- get Ctxt
          getCG (codegen (session (options defs)))
 
+warnUnusedImports : {auto c : Ref Ctxt Defs} -> (filename : String) -> Core ()
+warnUnusedImports filename = do
+  defs <- get Ctxt
+  let allUsedImports = nsAsModuleIdent preludeNS :: (SortedSet.toList defs.touchedImports)
+  log "import.used" 20 $ "Used imports: " ++ (show allUsedImports)
+  let unusedImports = (fst <$> defs.imported) \\ allUsedImports
+  case unusedImports of
+       []        => pure ()
+       (x :: xs) => do
+          log "import.used" 20 $ "Unused imports: " ++ (show unusedImports)
+          recordWarning (UnusedImports filename (show <$> (x ::: xs)))
+
 ||| Process everything in the module; return the syntax information which
 ||| needs to be written to the TTC (e.g. exported infix operators)
 ||| Returns 'Nothing' if it didn't reload anything
@@ -369,6 +382,7 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                 -- file hasn't changed, no need to rebuild.
                 defs <- get Ctxt
                 put Ctxt (record { importHashes = importInterfaceHashes } defs)
+                warnUnusedImports sourceFileName
                 pure (Just errs))
           (\err => pure (Just [err]))
 

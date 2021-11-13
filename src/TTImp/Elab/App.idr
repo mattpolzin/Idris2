@@ -76,8 +76,9 @@ getNameType elabMode rigc env fc x
                  [(pname, i, def)] <- lookupCtxtName x (gamma defs)
                       | ns => ambiguousName fc x (map fst ns)
                  checkVisibleNS fc (fullname def) (visibility def)
-                 when (not $ onLHS elabMode) $
+                 when (not $ onLHS elabMode) $ do
                    checkDeprecation fc def
+                   touchFullNamesModule def.fullname
                  rigSafe (multiplicity def) rigc
                  let nt = fromMaybe Func (defNameType $ definition def)
 

@@ -185,6 +185,8 @@ pwarning (Deprecated s fcAndName)
          pure . vsep $ catMaybes [ Just $ pretty "Deprecation warning:" <++> pretty s
                                  , map (const UserDocString) <$> docs
                                  ]
+pwarning (UnusedImports fname xs)
+    = pure . hsep $ (pretty "\{fname}:") :: (pretty <$> forget xs)
 pwarning (GenericWarn s)
     = pure $ pretty s
 

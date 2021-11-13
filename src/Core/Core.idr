@@ -71,6 +71,8 @@ data Warning : Type where
      ||| A warning about a deprecated definition. Supply an FC and Name to
      ||| have the documentation for the definition printed with the warning.
      Deprecated : String -> Maybe (FC, Name) -> Warning
+     ||| Source filename and list of unused imports.
+     UnusedImports : String -> List1 String -> Warning
      GenericWarn : String -> Warning
 
 -- All possible errors, carrying a location
@@ -192,6 +194,7 @@ Show Warning where
     show (UnreachableClause _ _ _) = ":Unreachable clause"
     show (ShadowingGlobalDefs _ _) = ":Shadowing names"
     show (Deprecated name _) = ":Deprecated " ++ name
+    show (UnusedImports filename xs) = ":UnusedImports \{filename} - \{show xs}"
     show (GenericWarn msg) = msg
 
 
@@ -371,6 +374,7 @@ getWarningLoc (ParserWarning fc _) = Just fc
 getWarningLoc (UnreachableClause fc _ _) = Just fc
 getWarningLoc (ShadowingGlobalDefs fc _) = Just fc
 getWarningLoc (Deprecated _ fcAndName) = fst <$> fcAndName
+getWarningLoc (UnusedImports _ _) = Nothing
 getWarningLoc (GenericWarn _) = Nothing
 
 export

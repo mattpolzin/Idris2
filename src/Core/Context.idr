@@ -16,13 +16,14 @@ import Libraries.Utils.Scheme
 
 import Data.Either
 import Data.Fin
-import Libraries.Data.IOArray
-import Libraries.Data.IntMap
 import Data.List
 import Data.List1
 import Data.Maybe
 import Data.Nat
+import Libraries.Data.IOArray
+import Libraries.Data.IntMap
 import Libraries.Data.NameMap
+import Libraries.Data.SortedSet
 import Libraries.Data.StringMap
 import Libraries.Data.UserNameMap
 import Libraries.Text.Distance.Levenshtein
@@ -168,6 +169,8 @@ returnDef True idx def
                     then Just (idx, def)
                     else Nothing
            _ => Nothing
+
+
 
 export
 lookupCtxtExactI : Name -> Context -> Core (Maybe (Int, GlobalDef))
@@ -749,6 +752,8 @@ record Defs where
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
+  touchedImports : SortedSet ModuleIdent
+     -- ^ Imports from which definitions have been used.
   cgdirectives : List (CG, String)
      -- ^ Code generator directives, which are free form text and thus to
      -- be interpreted however the specific code generator requires
@@ -815,6 +820,7 @@ initDefs
            , importHashes = []
            , imported = []
            , allImported = []
+           , touchedImports = empty
            , cgdirectives = []
            , toCompileCase = []
            , incData = []
@@ -1691,7 +1697,7 @@ addImported : {auto c : Ref Ctxt Defs} ->
               (ModuleIdent, Bool, Namespace) -> Core ()
 addImported mod
     = do defs <- get Ctxt
-         put Ctxt (record { imported $= (mod ::) } defs)
+         put Ctxt ({ imported $= (mod ::) } defs)
 
 export
 getImported : {auto c : Ref Ctxt Defs} ->
@@ -1699,6 +1705,18 @@ getImported : {auto c : Ref Ctxt Defs} ->
 getImported
     = do defs <- get Ctxt
          pure (imported defs)
+
+||| Mark a module as having been used.
+export
+touchModule : {auto c : Ref Ctxt Defs} -> ModuleIdent -> Core ()
+touchModule mod = do defs <- get Ctxt
+                     put Ctxt ({ touchedImports $= (insert mod)} defs)
+
+||| Expects a full name
+export
+touchFullNamesModule : {auto c : Ref Ctxt Defs} -> Name -> Core ()
+touchFullNamesModule n = let (ns, _) = splitNS n
+                     in  touchModule $ nsAsModuleIdent ns
 
 export
 addDirective : {auto c : Ref Ctxt Defs} ->
@@ -1709,7 +1727,7 @@ addDirective c str
               Nothing => -- warn, rather than fail, because the CG may exist
                          -- but be unknown to this particular instance
                          coreLift $ putStrLn $ "Unknown code generator " ++ c
-              Just cg => put Ctxt (record { cgdirectives $= ((cg, str) ::) } defs)
+              Just cg => put Ctxt ({ cgdirectives $= ((cg, str) ::) } defs)
 
 export
 getDirectives : {auto c : Ref Ctxt Defs} ->
