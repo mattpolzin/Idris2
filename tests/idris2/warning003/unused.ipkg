@@ -4,5 +4,6 @@ modules = Foo
         , Bar
         , Namespaced
         , Inlined
+        , Third
         , Main
 

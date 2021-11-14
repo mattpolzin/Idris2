@@ -2,10 +2,11 @@ module Main
 
 -- Foo is left unused
 import Foo
--- Bar, Namespaced, and Inlined are used
+-- The rest are used
 import Bar
 import Namespaced
 import Inlined
+import Third
 
 %logging "import.used" 2
 
@@ -15,6 +16,9 @@ useBar = Bar.dep1
 useNamesapced : String
 useNamesapced = namespaced "hi"
 
-inlined : String
-inlined = Inlined.inlined
+useInlined : String
+useInlined = inlined
+
+useThird : Third
+useThird = "three"
 
