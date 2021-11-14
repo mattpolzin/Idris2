@@ -1,6 +1,7 @@
 package unused
 
 modules = Foo
+        , Foo2
         , Bar
         , Namespaced
         , Inlined

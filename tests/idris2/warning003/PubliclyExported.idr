@@ -1,4 +1,5 @@
 module PubliclyExported
 
-unused : String
-unused = "not used"
+export
+indirectly : String
+indirectly = "not used"

@@ -3,6 +3,7 @@ module Main
 -- Foo is left unused
 import Foo
 -- The rest are used
+import Foo2
 import Bar
 import Namespaced
 import Inlined
@@ -19,4 +20,7 @@ useInlined = inlined
 
 useThird : Third
 useThird = "three"
+
+usePubliclyExported : String
+usePubliclyExported = indirectly
 
