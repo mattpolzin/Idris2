@@ -269,15 +269,21 @@ findCG
 
 warnUnusedImports : {auto c : Ref Ctxt Defs} -> (filename : String) -> Core ()
 warnUnusedImports filename = do
-  defs <- get Ctxt
-  let allUsedImports = nsAsModuleIdent preludeNS :: (SortedSet.toList defs.touchedImports)
-  log "import.used" 20 $ "Used imports: " ++ (show allUsedImports)
-  let unusedImports = (fst <$> defs.imported) \\ allUsedImports
-  case unusedImports of
-       []        => pure ()
-       (x :: xs) => do
-          log "import.used" 20 $ "Unused imports: " ++ (show unusedImports)
-          recordWarning (UnusedImports filename (show <$> (x ::: xs)))
+  warn !(get Ctxt)
+  where
+    warn : Defs -> Core ()
+    warn defs with (defs.touchedModules)
+      warn defs | touchedModules with (defs.options.session.showUnusedImportsWarning)
+        warn defs | touchedModules | False = pure ()
+        warn defs | touchedModules | True = do
+          let usedImports = SortedSet.toList touchedModules
+          log "import.used" 20 $ "Used imports: " ++ (show usedImports)
+          let unusedImports = (fst <$> defs.imported) \\ (nsAsModuleIdent preludeNS :: usedImports)
+          case unusedImports of
+               []        => pure ()
+               (x :: xs) => do
+                  log "import.used" 20 $ "Unused imports: " ++ (show unusedImports)
+                  recordWarning (UnusedImports filename (show <$> (x ::: xs)))
 
 ||| Process everything in the module; return the syntax information which
 ||| needs to be written to the TTC (e.g. exported infix operators)

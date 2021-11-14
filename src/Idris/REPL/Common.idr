@@ -202,7 +202,7 @@ resetContext : {auto c : Ref Ctxt Defs} ->
                Core ()
 resetContext origin
     = do defs <- get Ctxt
-         put Ctxt (record { options = clearNames (options defs) } !initDefs)
+         put Ctxt (updateOptions !initDefs (const $ clearNames defs.options))
          addPrimitives
          put UST initUState
          put Syn initSyntax

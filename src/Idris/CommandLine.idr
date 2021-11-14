@@ -143,6 +143,8 @@ data CLOpt
   WarningsAsErrors |
    ||| Do not print shadowing warnings
   IgnoreShadowingWarnings |
+   ||| Print unused import warnings
+  ShowUnusedImportsWarnings |
    ||| Use SHA256 hashes to determine if a source file needs rebuilding instead
    ||| of modification time.
   HashesInsteadOfModTime |
@@ -250,6 +252,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Treat warnings as errors"),
            MkOpt ["-Wno-shadowing"] [] [IgnoreShadowingWarnings]
               (Just "Do not print shadowing warnings"),
+           MkOpt ["-Wunused"] [] [ShowUnusedImportsWarnings]
+              (Just "Show warnings when imports are not used"),
 
            optSeparator,
            MkOpt ["-Xcheck-hashes"] [] [HashesInsteadOfModTime]

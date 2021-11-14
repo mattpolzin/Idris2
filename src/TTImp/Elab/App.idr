@@ -78,7 +78,7 @@ getNameType elabMode rigc env fc x
                  checkVisibleNS fc (fullname def) (visibility def)
                  when (not $ onLHS elabMode) $ do
                    checkDeprecation fc def
-                   touchFullNamesModule def.fullname
+                   touchNameAsModule def.fullname
                  rigSafe (multiplicity def) rigc
                  let nt = fromMaybe Func (defNameType $ definition def)
 

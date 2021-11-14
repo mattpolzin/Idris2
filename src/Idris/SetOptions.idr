@@ -400,6 +400,9 @@ preOptions (WarningsAsErrors :: opts)
 preOptions (IgnoreShadowingWarnings :: opts)
     = do updateSession (record { showShadowingWarning = False })
          preOptions opts
+preOptions (ShowUnusedImportsWarnings :: opts)
+    = do updateSession (record { showUnusedImportsWarning = True })
+         preOptions opts
 preOptions (HashesInsteadOfModTime :: opts)
     = do throw (InternalError "-Xcheck-hashes disabled (see issue #1935)")
          updateSession (record { checkHashesInsteadOfModTime = True })

@@ -173,6 +173,7 @@ record Session where
   -- Warnings
   warningsAsErrors : Bool
   showShadowingWarning : Bool
+  showUnusedImportsWarning : Bool
 
   -- Experimental
   checkHashesInsteadOfModTime : Bool
@@ -232,7 +233,7 @@ defaultSession : Session
 defaultSession = MkSessionOpts False CoveringOnly False False Chez [] 1000 False False
                                defaultLogLevel False False Nothing Nothing
                                Nothing Nothing False 1 False True
-                               False [] False False
+                               False False [] False False
 
 export
 defaultElab : ElabDirectives

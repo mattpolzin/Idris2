@@ -186,7 +186,7 @@ pwarning (Deprecated s fcAndName)
                                  , map (const UserDocString) <$> docs
                                  ]
 pwarning (UnusedImports fname xs)
-    = pure . hsep $ (pretty "\{fname}:") :: (pretty <$> forget xs)
+    = pure $ pretty "Unused Imports in \{fname}:" <++> (pretty . join ", " $ forget xs)
 pwarning (GenericWarn s)
     = pure $ pretty s
 
