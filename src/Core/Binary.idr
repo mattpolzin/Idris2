@@ -24,6 +24,7 @@ import System.File
 
 import Libraries.Data.IntMap
 import Libraries.Data.NameMap
+import Libraries.Data.SortedMap
 
 import public Libraries.Utils.Binary
 
@@ -330,8 +331,10 @@ addGlobalDef modns filens asm (n, def)
                         (\ p => do x <- decode (gamma defs) (fst p) False (snd p)
                                    pure (Just x))
                         codedentry
-         unless (completeDef entry) $
+         unless (completeDef entry) $ do
            ignore $ addContextEntry filens n def
+           let (ns, _) = splitNS n
+           addModuleNamespace modns ns
 
          whenJust asm $ \ as => addContextAlias (asName modns as n) n
 
@@ -455,7 +458,7 @@ readFromTTC nestedns loc reexp fname modNS importAs
          -- this time, because we need to reexport the dependencies.)
          let False = (modNS, reexp, importAs) `elem` map snd (allImported defs)
               | True => pure Nothing
-         put Ctxt (record { allImported $= ((fname, (modNS, reexp, importAs)) :: ) } defs)
+         put Ctxt ({ allImported $= ((fname, (modNS, reexp, importAs)) :: ) } defs)
 
          Right buffer <- coreLift $ readFromFile fname
                | Left err => throw (InternalError (fname ++ ": " ++ show err))

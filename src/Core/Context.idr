@@ -24,6 +24,7 @@ import Libraries.Data.IOArray
 import Libraries.Data.IntMap
 import Libraries.Data.NameMap
 import Libraries.Data.SortedSet
+import Libraries.Data.SortedMap
 import Libraries.Data.StringMap
 import Libraries.Data.UserNameMap
 import Libraries.Text.Distance.Levenshtein
@@ -708,10 +709,10 @@ allNames : Context -> Core (List Name)
 allNames ctxt = traverse (full ctxt) $ map Resolved [1..nextEntry ctxt - 1]
 
 public export
-TouchedModules : Options -> Type
-TouchedModules opts = ifThenElse opts.session.showUnusedImportsWarning
-                                (SortedSet ModuleIdent)
-                                ()
+TouchedNamespaces : Options -> Type
+TouchedNamespaces opts = ifThenElse opts.session.showUnusedImportsWarning
+                                    (SortedSet Namespace)
+                                    ()
 
 public export
 record Defs where
@@ -757,8 +758,10 @@ record Defs where
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
-  touchedModules : TouchedModules options
-     -- ^ Imports from which definitions have been used (Nothing unless
+  namespaceModules : SortedMap Namespace ModuleIdent
+     -- ^ A mapping from namespaces to the modules in which they are defined.
+  touchedNamespaces : TouchedNamespaces options
+     -- ^ Namespaces from which definitions have been used (Not populated unless
      -- unused import warning is turned on).
   cgdirectives : List (CG, String)
      -- ^ Code generator directives, which are free form text and thus to
@@ -800,27 +803,28 @@ clearDefs : Defs -> Core Defs
 clearDefs defs
     = pure ({ gamma->inlineOnly := True } defs)
 
-touchedModulesForOptions : (opts : Options) -> Lazy (SortedSet ModuleIdent) -> TouchedModules opts
-touchedModulesForOptions opts xs with (opts.session.showUnusedImportsWarning)
+touchedNamespacesForOptions : (opts : Options) -> Lazy (SortedSet Namespace) -> TouchedNamespaces opts
+touchedNamespacesForOptions opts xs with (opts.session.showUnusedImportsWarning)
   _ | False = ()
   _ | True = xs
 
-updateTouchedModules : (defs : Defs) -> (SortedSet ModuleIdent -> SortedSet ModuleIdent) -> Defs
-updateTouchedModules defs f with (defs.touchedModules)
-  updateTouchedModules defs f | xs with (defs.options.session.showUnusedImportsWarning)
-    updateTouchedModules defs f | _ | False = defs
-    updateTouchedModules defs f | xs | True = { touchedModules := touchedModulesForOptions defs.options (f xs) } defs
+updateTouchedNamespaces : (defs : Defs) -> (SortedSet Namespace -> SortedSet Namespace) -> Defs
+updateTouchedNamespaces defs f with (defs.touchedNamespaces)
+  updateTouchedNamespaces defs f | xs with (defs.options.session.showUnusedImportsWarning)
+    updateTouchedNamespaces defs f | _ | False = defs
+    updateTouchedNamespaces defs f | xs | True =
+      { touchedNamespaces := touchedNamespacesForOptions defs.options (f xs) } defs
 
 export
 updateOptions : Defs -> (Options -> Options) -> Defs
-updateOptions defs f with (defs.touchedModules)
-  updateOptions defs f | touchedModules with (defs.options.session.showUnusedImportsWarning)
+updateOptions defs f with (defs.touchedNamespaces)
+  updateOptions defs f | touchedNamespaces with (defs.options.session.showUnusedImportsWarning)
     updateOptions defs f | _ | False =
       let opts = f defs.options in
-        { options := opts, touchedModules := touchedModulesForOptions opts empty } defs
-    updateOptions defs f | touchedModules | True =
+        { options := opts, touchedNamespaces := touchedNamespacesForOptions opts empty } defs
+    updateOptions defs f | touchedNamespaces | True =
       let opts = f defs.options in
-        { options := opts, touchedModules := touchedModulesForOptions opts touchedModules } defs
+        { options := opts, touchedNamespaces := touchedNamespacesForOptions opts touchedNamespaces } defs
 
 export
 initDefs : Core Defs
@@ -848,7 +852,8 @@ initDefs
            , importHashes = []
            , imported = []
            , allImported = []
-           , touchedModules = touchedModulesForOptions opts empty
+           , namespaceModules = empty
+           , touchedNamespaces = touchedNamespacesForOptions opts empty
            , cgdirectives = []
            , toCompileCase = []
            , incData = []
@@ -1093,6 +1098,15 @@ addContextAlias alias full
              | _ => pure () -- Don't add the alias if the name exists already
          gam' <- newAlias alias full (gamma defs)
          put Ctxt ({ gamma := gam' } defs)
+
+export
+addModuleNamespace : {auto c : Ref Ctxt Defs} ->
+                     ModuleIdent ->
+                     Namespace ->
+                     Core ()
+addModuleNamespace mod ns
+  = do defs <- get Ctxt
+       put Ctxt ({ namespaceModules $= insert ns mod } defs)
 
 export
 addBuiltin : {arity : _} ->
@@ -1735,17 +1749,17 @@ getImported
     = do defs <- get Ctxt
          pure (imported defs)
 
-||| Mark a module as having been used.
+||| Mark a Namepsace as having been used.
 export
-touchModule : {auto c : Ref Ctxt Defs} -> ModuleIdent -> Core ()
-touchModule mod = do defs <- get Ctxt
-                     put Ctxt (updateTouchedModules defs (insert mod))
+touchNamespace : {auto c : Ref Ctxt Defs} -> Namespace -> Core ()
+touchNamespace ns = do defs <- get Ctxt
+                       put Ctxt (updateTouchedNamespaces defs (insert ns))
 
 ||| Expects a full name
 export
-touchNameAsModule : {auto c : Ref Ctxt Defs} -> Name -> Core ()
-touchNameAsModule n = let (ns, _) = splitNS n
-                      in  touchModule $ nsAsModuleIdent ns
+touchNamespaceForName : {auto c : Ref Ctxt Defs} -> Name -> Core ()
+touchNamespaceForName n = let (ns, _) = splitNS n
+                          in  touchNamespace ns
 
 export
 addDirective : {auto c : Ref Ctxt Defs} ->

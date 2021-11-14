@@ -272,11 +272,13 @@ warnUnusedImports filename = do
   warn !(get Ctxt)
   where
     warn : Defs -> Core ()
-    warn defs with (defs.touchedModules)
-      warn defs | touchedModules with (defs.options.session.showUnusedImportsWarning)
-        warn defs | touchedModules | False = pure ()
-        warn defs | touchedModules | True = do
-          let usedImports = SortedSet.toList touchedModules
+    warn defs with (defs.touchedNamespaces)
+      warn defs | touchedNamespaces with (defs.options.session.showUnusedImportsWarning)
+        warn defs | touchedNamespaces | False = pure ()
+        warn defs | touchedNamespaces | True = do
+          let usedNamespaces = SortedSet.toList touchedNamespaces
+          log "import.used" 10 $ "Used namespaces: " ++ (show usedNamespaces)
+          let usedImports = mapMaybe (flip lookup defs.namespaceModules) usedNamespaces
           log "import.used" 2 $ "Used imports: " ++ (show usedImports)
           let unusedImports = (fst <$> defs.imported) \\ (nsAsModuleIdent preludeNS :: usedImports)
           case unusedImports of
@@ -386,7 +388,7 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                 -- If they haven't changed next time, and the source
                 -- file hasn't changed, no need to rebuild.
                 defs <- get Ctxt
-                put Ctxt (record { importHashes = importInterfaceHashes } defs)
+                put Ctxt ({ importHashes := importInterfaceHashes } defs)
                 warnUnusedImports sourceFileName
                 pure (Just errs))
           (\err => pure (Just [err]))

@@ -8,8 +8,6 @@ import Namespaced
 import Inlined
 import Third
 
-%logging "import.used" 2
-
 useBar : String
 useBar = Bar.dep1
 
