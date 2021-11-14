@@ -280,7 +280,9 @@ warnUnusedImports filename = do
           log "import.used" 10 $ "Used namespaces: " ++ (show usedNamespaces)
           let usedImports = mapMaybe (flip lookup defs.namespaceModules) usedNamespaces
           log "import.used" 2 $ "Used imports: " ++ (show usedImports)
-          let unusedImports = (fst <$> defs.imported) \\ (nsAsModuleIdent preludeNS :: usedImports)
+          let privateImports = mapMaybe (\(mod, pub, _) => if pub then Nothing else Just mod) defs.imported
+          log "import.used" 10 $ "Non-public imports: " ++ (show privateImports)
+          let unusedImports = privateImports \\ (nsAsModuleIdent preludeNS :: usedImports)
           case unusedImports of
                []        => pure ()
                (x :: xs) => do

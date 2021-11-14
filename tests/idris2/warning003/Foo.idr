@@ -1,5 +1,7 @@
 module Foo
 
+import public PubliclyExported
+
 export
 dep1 : String
 dep1 = "hello"

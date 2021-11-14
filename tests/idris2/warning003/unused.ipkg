@@ -6,4 +6,5 @@ modules = Foo
         , Inlined
         , Third
         , Main
+        , PubliclyExported
 
