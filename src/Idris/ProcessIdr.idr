@@ -277,12 +277,11 @@ warnUnusedImports filename = do
         warn defs | touchedModules | False = pure ()
         warn defs | touchedModules | True = do
           let usedImports = SortedSet.toList touchedModules
-          log "import.used" 20 $ "Used imports: " ++ (show usedImports)
+          log "import.used" 2 $ "Used imports: " ++ (show usedImports)
           let unusedImports = (fst <$> defs.imported) \\ (nsAsModuleIdent preludeNS :: usedImports)
           case unusedImports of
                []        => pure ()
                (x :: xs) => do
-                  log "import.used" 20 $ "Unused imports: " ++ (show unusedImports)
                   recordWarning (UnusedImports filename (show <$> (x ::: xs)))
 
 ||| Process everything in the module; return the syntax information which

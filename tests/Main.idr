@@ -61,7 +61,7 @@ idrisTestsCasetree = MkTestPool "Case tree building" [] Nothing
 
 idrisTestsWarning : TestPool
 idrisTestsWarning = MkTestPool "Warnings" [] Nothing
-     ["warning001", "warning002"]
+     ["warning001", "warning002", "warning003"]
 
 idrisTestsError : TestPool
 idrisTestsError = MkTestPool "Error messages" [] Nothing

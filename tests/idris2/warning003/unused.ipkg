@@ -1,0 +1,8 @@
+package unused
+
+modules = Foo
+        , Bar
+        , Namespaced
+        , Inlined
+        , Main
+
