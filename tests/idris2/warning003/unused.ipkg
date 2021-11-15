@@ -8,4 +8,7 @@ modules = Foo
         , Third
         , Main
         , PubliclyExported
+        , PubliclyExported2
+        , PubliclyForwarded
+        , Proxy
 

@@ -86,13 +86,14 @@ processDecls decls
 readModule : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
+             (origin : ModuleIdent) -> -- module that spun off any number of public imports
              (full : Bool) -> -- load everything transitively (needed for REPL and compiling)
              FC ->
              (visible : Bool) -> -- Is import visible to top level module?
              (imp : ModuleIdent) -> -- Module name to import
              (as : Namespace) -> -- Namespace to import into
              Core ()
-readModule full loc vis imp as
+readModule origin full loc vis imp as
     = do defs <- get Ctxt
          let False = (imp, vis, as) `elem` map snd (allImported defs)
              | True => when vis (setVisible (miAsNamespace imp))
@@ -112,16 +113,16 @@ readModule full loc vis imp as
         readMore : (ModuleIdent, Bool, Namespace) -> Core ()
         readMore (m, reexp, as)
           = do when reexp $
-                 addModuleNamespace imp (miAsNamespace m) -- should we be using the as Namespace or the module ident m?
+                 addModuleNamespace origin (miAsNamespace m) -- should we be using the as Namespace or the module ident m?
                when (reexp || full) $
-                 readModule full loc reexp m as
+                 readModule origin full loc reexp m as
 
 readImport : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
              Bool -> Import -> Core ()
 readImport full imp
-    = do readModule full (loc imp) True (path imp) (nameAs imp)
+    = do readModule (path imp) full (loc imp) True (path imp) (nameAs imp)
          addImported (path imp, reexport imp, nameAs imp)
 
 ||| Adds new import to the namespace without changing the current top-level namespace
@@ -178,13 +179,14 @@ readAsMain fname
          traverse_ (\ mimp =>
                        do let m = fst mimp
                           let as = snd (snd mimp)
-                          readModule True emptyFC True m as
+                          readModule m True emptyFC True m as
                           addImported (m, True, as)) more
 
          -- also load the prelude, if required, so that we have access to it
          -- at the REPL.
-         when (not (noprelude !getSession)) $
-              readModule True emptyFC True (nsAsModuleIdent preludeNS) preludeNS
+         when (not (noprelude !getSession)) $ do
+           let preludeIdent = nsAsModuleIdent preludeNS 
+           readModule preludeIdent True emptyFC True preludeIdent preludeNS
 
          -- We're in the namespace from the first TTC, so use the next name
          -- from that for the fresh metavariable name generation
@@ -279,7 +281,6 @@ warnUnusedImports filename = do
       warn defs | touchedNamespaces with (defs.options.session.showUnusedImportsWarning)
         warn defs | touchedNamespaces | False = pure ()
         warn defs | touchedNamespaces | True = do
-          log "import.used" 2 $ "allImported: " ++ (show defs.allImported)
           let usedNamespaces = SortedSet.toList touchedNamespaces
           log "import.used" 10 $ "Used namespaces: " ++ (show usedNamespaces)
           log "import.used" 15 $ "Namespace -> Module mappings: " ++ (show defs.namespaceModules)

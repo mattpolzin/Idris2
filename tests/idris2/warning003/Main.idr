@@ -8,6 +8,7 @@ import Bar
 import Namespaced
 import Inlined
 import Third
+import Proxy
 
 useBar : String
 useBar = Bar.dep1
@@ -24,3 +25,5 @@ useThird = "three"
 usePubliclyExported : String
 usePubliclyExported = indirectly
 
+useProxy : String
+useProxy = twiceRemoved
