@@ -185,7 +185,7 @@ readAsMain fname
          -- also load the prelude, if required, so that we have access to it
          -- at the REPL.
          when (not (noprelude !getSession)) $ do
-           let preludeIdent = nsAsModuleIdent preludeNS 
+           let preludeIdent = nsAsModuleIdent preludeNS
            readModule preludeIdent True emptyFC True preludeIdent preludeNS
 
          -- We're in the namespace from the first TTC, so use the next name
