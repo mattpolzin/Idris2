@@ -106,12 +106,15 @@ readModule full loc vis imp as
          defs <- get Ctxt
          modNS <- getNS
          when vis $ setVisible (miAsNamespace imp)
-         traverse_ (\ mimp =>
-                       do let m = fst mimp
-                          let reexp = fst (snd mimp)
-                          let as = snd (snd mimp)
-                          when (reexp || full) $ readModule full loc reexp m as) more
+         traverse_ readMore more
          setNS modNS
+      where
+        readMore : (ModuleIdent, Bool, Namespace) -> Core ()
+        readMore (m, reexp, as)
+          = do when reexp $
+                 addModuleNamespace imp (miAsNamespace m) -- should we be using the as Namespace or the module ident m?
+               when (reexp || full) $
+                 readModule full loc reexp m as
 
 readImport : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
@@ -276,9 +279,11 @@ warnUnusedImports filename = do
       warn defs | touchedNamespaces with (defs.options.session.showUnusedImportsWarning)
         warn defs | touchedNamespaces | False = pure ()
         warn defs | touchedNamespaces | True = do
+          log "import.used" 2 $ "allImported: " ++ (show defs.allImported)
           let usedNamespaces = SortedSet.toList touchedNamespaces
           log "import.used" 10 $ "Used namespaces: " ++ (show usedNamespaces)
-          let usedImports = mapMaybe (flip lookup defs.namespaceModules) usedNamespaces
+          log "import.used" 15 $ "Namespace -> Module mappings: " ++ (show defs.namespaceModules)
+          let usedImports = concatMap (maybe [] toList . flip lookup defs.namespaceModules) usedNamespaces
           log "import.used" 2 $ "Used imports: " ++ (show usedImports)
           let privateImports = mapMaybe (\(mod, pub, _) => if pub then Nothing else Just mod) defs.imported
           log "import.used" 10 $ "Non-public imports: " ++ (show privateImports)

@@ -758,7 +758,7 @@ record Defs where
      -- ^ all imported filenames/namespaces, just to avoid loading something
      -- twice unnecessarily (this is a record of all the things we've
      -- called 'readFromTTC' with, in practice)
-  namespaceModules : SortedMap Namespace ModuleIdent
+  namespaceModules : SortedMap Namespace (SortedSet ModuleIdent)
      -- ^ A mapping from namespaces to the modules in which they are defined.
   touchedNamespaces : TouchedNamespaces options
      -- ^ Namespaces from which definitions have been used (Not populated unless
@@ -1106,7 +1106,12 @@ addModuleNamespace : {auto c : Ref Ctxt Defs} ->
                      Core ()
 addModuleNamespace mod ns
   = do defs <- get Ctxt
-       put Ctxt ({ namespaceModules $= insert ns mod } defs)
+       put Ctxt ({ namespaceModules $= insert' } defs)
+    where
+      insert' : SortedMap Namespace (SortedSet ModuleIdent) -> SortedMap Namespace (SortedSet ModuleIdent)
+      insert' nsm = case lookup ns nsm of
+                         Just mods => insert ns (insert mod mods) nsm
+                         Nothing   => insert ns (singleton mod) nsm
 
 export
 addBuiltin : {arity : _} ->
@@ -1731,10 +1736,11 @@ getNestedNS
     = do defs <- get Ctxt
          pure (nestedNS defs)
 
--- Add the module name, and namespace, of an imported module
--- (i.e. for "import X as Y", it's (X, Y)
+-- Add the module name, whether to re-export, and namespace,
+-- of an imported module.
+-- i.e. for "import X as Y", it's (X, False, Y)
 -- "import public X" is, when rexported, the same as
--- "import X as [current namespace]")
+-- "import X as [current namespace]"
 export
 addImported : {auto c : Ref Ctxt Defs} ->
               (ModuleIdent, Bool, Namespace) -> Core ()
