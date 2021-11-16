@@ -2,8 +2,6 @@ module System.File.ReadWrite
 
 import public Data.Fuel
 
-import Data.List
-
 import System.File.Handle
 import public System.File.Error
 import System.File.Support
