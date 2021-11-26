@@ -39,6 +39,7 @@ import Idris.Doc.String
 
 import Data.List
 import Libraries.Data.SortedMap
+import Libraries.Utils.Path
 import Libraries.Data.SortedSet
 
 import System.File
@@ -343,7 +344,7 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                    pure Nothing
            else -- needs rebuilding
              do iputStrLn msg
-                Right (ws, decor, mod) <-
+                Right (ws, MkState decor hnames, mod) <-
                     logTime ("++ Parsing " ++ sourceFileName) $
                       pure $ runParser (PhysicalIdrSrc origin)
                                        (isLitFile sourceFileName)
@@ -360,6 +361,9 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                 addModDocString (moduleNS mod) (documentation mod)
 
                 addSemanticDecorations decor
+                syn <- get Syn
+                put Syn ({ holeNames := hnames } syn)
+
                 initHash
                 traverse_ addPublicHash (sort importMetas)
                 resetNextVar

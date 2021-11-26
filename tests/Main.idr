@@ -41,7 +41,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic046", "basic047",             "basic049", "basic050",
        "basic051", "basic052", "basic053", "basic054", "basic055",
        "basic056", "basic057", "basic058", "basic059", "basic060",
-       "basic061", "basic062", "basic063",
+       "basic061", "basic062", "basic063", "basic064", "basic065",
        "interpolation001", "interpolation002", "interpolation003",
        "interpolation004"]
 
@@ -142,7 +142,8 @@ idrisTestsData = MkTestPool "Data and record types" [] Nothing
        "data001",
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
-       "record006", "record007", "record008", "record009", "record010"]
+       "record006", "record007", "record008", "record009", "record010",
+       "record011"]
 
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool "Builtin types and functions" [] Nothing
@@ -206,7 +207,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "params001", "params002", "params003",
        -- Packages and ipkg files
        "pkg001", "pkg002", "pkg003", "pkg004", "pkg005", "pkg006", "pkg007",
-       "pkg008", "pkg009", "pkg010",
+       "pkg008", "pkg009", "pkg010", "pkg011",
        -- Larger programs arising from real usage. Typically things with
        -- interesting interactions between features
        "real001", "real002",
@@ -214,6 +215,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        "reflection001", "reflection002", "reflection003", "reflection004",
        "reflection005", "reflection006", "reflection007", "reflection008",
        "reflection009", "reflection010", "reflection011", "reflection012",
+       "reflection013",
        -- The 'with' rule
        "with001", "with002", "with004", "with005", "with006",
        -- with-disambiguation
