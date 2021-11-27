@@ -9,6 +9,8 @@ import Namespaced
 import Inlined
 import Third
 import Proxy
+import CoolFactor
+import UseCoolFactor
 
 useBar : String
 useBar = Bar.dep1
@@ -27,3 +29,10 @@ usePubliclyExported = indirectly
 
 useProxy : String
 useProxy = twiceRemoved
+
+-- specifically, don't use the interface's method, only
+-- use the interface in so far as Idris needs to create a
+-- witness via search.
+useViaSearch : String
+useViaSearch = cool "beans"
+
