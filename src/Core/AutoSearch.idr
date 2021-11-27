@@ -389,6 +389,8 @@ searchName fc rigc defaults trying depth def top env target (n, ndef)
          -- dependencies by unification
          traverse_ (searchIfHole fc defaults trying ispair depth def top env)
                   (impLast args)
+         log "import.used" 20 "touch name during autosearch: \{show ndef.fullname}."
+         touchNamespaceForName ndef.fullname
          pure candidate
 
 searchNames : {vars : _} ->
@@ -405,7 +407,7 @@ searchNames fc rigc defaults trying depth defining topty env ambig [] target
 searchNames fc rigc defaults trying depth defining topty env ambig (n :: ns) target
     = do defs <- get Ctxt
          visnsm <- traverse (visible (gamma defs) (currentNS defs :: nestedNS defs)) (n :: ns)
-         let visns = mapMaybe id visnsm
+         let visns = catMaybes visnsm
          let elabs = map (searchName fc rigc defaults trying depth defining topty env target) visns
          if ambig
             then anyOne fc env topty elabs
@@ -569,12 +571,10 @@ searchType {vars} fc rigc defaults trying depth def checkdets top env target
 --          (defining : Name) -> (topTy : Term vars) -> Env Term vars ->
 --          Core (Term vars)
 Core.Unify.search fc rigc defaults depth def top env
-    = do defs <- get Ctxt
-         logTermNF "auto" 3 "Initial target: " env top
+    = do logTermNF "auto" 3 "Initial target: " env top
          log "auto" 3 $ "Running search with defaults " ++ show defaults
          tm <- searchType fc rigc defaults [] depth def
                           True (abstractEnvType fc env top) env
                           top
          logTermNF "auto" 3 "Result" env tm
-         defs <- get Ctxt
          pure tm
