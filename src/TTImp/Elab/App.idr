@@ -817,9 +817,22 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs autoargs namedargs exp
         let fn = case lookup n (names nest) of
                       Just (Just n', _) => n'
                       _ => n
+        touchReturnType !(get Ctxt) nty
         normalisePrims prims env
            !(checkAppWith rig elabinfo nest env fc ntm nty (Just fn, arglen) expargs autoargs namedargs False exp)
   where
+    -- we touch the return type because currently Idris requires such types'
+    -- modules are imported explicitly. If in the future Idris learnes how to
+    -- implicitly re-export types that are returned from functions from modules
+    -- defining those functions, then using those functions will not need to
+    -- 'touch' (i.e. require the import of) the module defining the return type.
+    touchReturnType : Defs -> NF vars -> Core ()
+    touchReturnType defs (NBind fc _ (Pi _ _ _ _) sc)
+        = touchReturnType defs !(sc defs (toClosure defaultOpts env (Erased fc False)))
+    touchReturnType defs (NTCon _ n _ _ _)
+        = do log "import.used" 20 "touched namespace for return type: \{show !(full defs.gamma n)}"
+             touchNamespaceForName !(full defs.gamma n)
+    touchReturnType _ _ = pure ()
 
     -- If the term is an application of a primitive conversion (fromInteger etc)
     -- and it's applied to a constant, fully normalise the term.
