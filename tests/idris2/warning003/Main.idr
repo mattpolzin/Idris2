@@ -11,6 +11,8 @@ import Third
 import Proxy
 import CoolFactor
 import UseCoolFactor
+import TestType
+import ReturnsTestType
 
 useBar : String
 useBar = Bar.dep1
@@ -35,4 +37,10 @@ useProxy = twiceRemoved
 -- witness via search.
 useViaSearch : String
 useViaSearch = cool "beans"
+
+-- Use test type by way of calling `ReturnsTestType.retType`
+-- but not by directly using `TestType.TestType`.
+useTestType : ()
+useTestType = let x = retType
+              in  ()
 
