@@ -435,10 +435,10 @@ mutual
            {- TODO: reverse ranges -}
            b <- bounds (symbol "]")
            pure $
-             let xs : List (WithBounds PTerm)
+             let xs : SnocList (WithBounds PTerm)
                     = case mHeadTail of
-                        Nothing      => []
-                        Just (hd,tl) => hd ++ [ tl <$ b]
+                        Nothing      => [<]
+                        Just (hd,tl) => ([<] <>< hd) :< (tl <$ b)
                  fc = boundToFC fname (mergeBounds s b)
                  nilFC = ifThenElse (null xs) fc (boundToFC fname s)
              in PSnocList fc nilFC (map (\ t => (boundToFC fname t, t.val)) xs) --)
@@ -1549,7 +1549,7 @@ fieldDecl fname indents
       = do doc <- optDocumentation fname
            decoratedSymbol fname "{"
            commit
-           impl <- option Implicit (AutoImplicit <$ decoratedKeyword fname "auto")
+           impl <- option Implicit (autoImplicitField <|> defImplicitField)
            fs <- fieldBody doc impl
            decoratedSymbol fname "}"
            atEnd indents
@@ -1559,6 +1559,16 @@ fieldDecl fname indents
            atEnd indents
            pure fs
   where
+    autoImplicitField : Rule (PiInfo t)
+    autoImplicitField = AutoImplicit <$ decoratedKeyword fname "auto"
+
+    defImplicitField : Rule (PiInfo PTerm)
+    defImplicitField = do
+      decoratedKeyword fname "default"
+      commit
+      t <- simpleExpr fname indents
+      pure (DefImplicit t)
+
     fieldBody : String -> PiInfo PTerm -> Rule (List PField)
     fieldBody doc p
         = do b <- bounds (do rig <- multiplicity fname
@@ -2041,10 +2051,11 @@ docArgCmd parseCmd command doc = (names, DocArg, doc, parse)
     parse = do
       symbol ":"
       runParseCmd parseCmd
-      dir <- mustWork $ Keyword <$> anyKeyword
-                    <|> Symbol <$> anyReservedSymbol
-                               <* eoi -- needed so that we don't capture `(<$)`
-                    <|> APTerm <$> typeExpr pdef (Virtual Interactive) init
+      dir <- mustWork $
+        Keyword <$> anyKeyword
+        <|> Symbol <$> (anyReservedSymbol <* eoi
+                       <|> parens (Virtual Interactive) anyReservedSymbol <* eoi)
+        <|> APTerm <$> typeExpr pdef (Virtual Interactive) init
       pure (command dir)
 
 declsArgCmd : ParseCmd -> (List PDecl -> REPLCmd) -> String -> CommandDefinition

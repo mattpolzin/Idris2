@@ -88,7 +88,8 @@ idrisTestsInteractive = MkTestPool "Interactive editing" [] Nothing
        "interactive025", "interactive026", "interactive027", "interactive028",
        "interactive029", "interactive030", "interactive031", "interactive032",
        "interactive033", "interactive034", "interactive035", "interactive036",
-       "interactive037", "interactive038", "interactive039", "interactive040"]
+       "interactive037", "interactive038", "interactive039", "interactive040",
+       "interactive041"]
 
 idrisTestsInterface : TestPool
 idrisTestsInterface = MkTestPool "Interface" [] Nothing
@@ -107,7 +108,7 @@ idrisTestsLinear = MkTestPool "Quantities" [] Nothing
        ["linear001", "linear002", "linear003", -- "linear004" -- disabled due to requiring linearity subtyping
         "linear005", "linear006", "linear007", "linear008",
         "linear009", "linear010", "linear011", "linear012",
-        "linear013", "linear014"]
+        "linear013", "linear014", "linear015"]
 
 idrisTestsLiterate : TestPool
 idrisTestsLiterate = MkTestPool "Literate programming" [] Nothing
@@ -143,7 +144,7 @@ idrisTestsData = MkTestPool "Data and record types" [] Nothing
        -- Records, access and dependent update
        "record001", "record002", "record003", "record004", "record005",
        "record006", "record007", "record008", "record009", "record010",
-       "record011"]
+       "record011", "record012", "record013" ]
 
 idrisTestsBuiltin : TestPool
 idrisTestsBuiltin = MkTestPool "Builtin types and functions" [] Nothing
@@ -188,7 +189,7 @@ idrisTestsTotality = MkTestPool "Totality checking" [] Nothing
 idrisTestsSchemeEval : TestPool
 idrisTestsSchemeEval = MkTestPool "Scheme Evaluator" [] Nothing
      ["schemeeval001", "schemeeval002", "schemeeval003", "schemeeval004",
-      "schemeeval005"]
+      "schemeeval005", "schemeeval006"]
 
 idrisTests : TestPool
 idrisTests = MkTestPool "Misc" [] Nothing
@@ -221,7 +222,7 @@ idrisTests = MkTestPool "Misc" [] Nothing
        -- with-disambiguation
        "with003",
        -- pretty printing
-       "pretty001",
+       "pretty001", "pretty002",
        -- golden file testing
        "golden001"]
 
