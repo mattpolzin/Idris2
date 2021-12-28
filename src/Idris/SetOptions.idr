@@ -397,7 +397,7 @@ preOptions (IgnoreShadowingWarnings :: opts)
     = do updateSession ({ showShadowingWarning := False })
          preOptions opts
 preOptions (ShowUnusedImportsWarnings :: opts)
-    = do updateSession (record { showUnusedImportsWarning = True })
+    = do updateSession ({ showUnusedImportsWarning := True })
          preOptions opts
 preOptions (HashesInsteadOfModTime :: opts)
     = do throw (InternalError "-Xcheck-hashes disabled (see issue #1935)")
