@@ -191,7 +191,7 @@ readAsMain fname
          -- TODO: Maybe we should record this per namespace, since this is
          -- a little bit of a hack? Or maybe that will have too much overhead.
          ust <- get UST
-         put UST (record { nextName = nextName ustm } ust)
+         put UST ({ nextName := nextName ustm } ust)
 
          setNS replNS
          setNestedNS replNestedNS

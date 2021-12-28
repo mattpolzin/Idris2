@@ -42,7 +42,7 @@ idrisTestsBasic = MkTestPool "Fundamental language features" [] Nothing
        "basic051", "basic052", "basic053", "basic054", "basic055",
        "basic056", "basic057", "basic058", "basic059", "basic060",
        "basic061", "basic062", "basic063", "basic064", "basic065",
-       "basic066", "basic067",
+       "basic066", "basic067", "basic068",
        "interpolation001", "interpolation002", "interpolation003",
        "interpolation004"]
 
@@ -271,7 +271,7 @@ nodeTests = MkTestPool "Node backend" [] (Just Node)
     [ "node001", "node002", "node003", "node004", "node005", "node006"
     , "node007", "node008", "node009", "node011", "node012", "node015"
     , "node017", "node018", "node019", "node021", "node022", "node023"
-    , "node024", "node025", "node026"
+    , "node024", "node025", "node026", "node027"
     , "perf001"
     -- , "node14", "node020"
     , "args"
@@ -357,4 +357,4 @@ main = runner $
     where
 
     testPaths : String -> TestPool -> TestPool
-    testPaths dir = record { testCases $= map ((dir ++ "/") ++) }
+    testPaths dir = { testCases $= map ((dir ++ "/") ++) }
