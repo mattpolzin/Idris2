@@ -836,6 +836,13 @@ updateTouchedNamespaces defs f with (defs.touchedNamespaces)
       { touchedNamespaces := touchedNamespacesForOptions defs.options (f xs) } defs
 
 export
+showTouchedNamespaces : (defs : Defs) -> String
+showTouchedNamespaces defs with (defs.touchedNamespaces)
+  _ | touchedNamespaces with (defs.options.session.showUnusedImportsWarning)
+    _ | False = show touchedNamespaces
+    _ | True  = show touchedNamespaces
+
+export
 updateOptions : Defs -> (Options -> Options) -> Defs
 updateOptions defs f with (defs.touchedNamespaces)
   updateOptions defs f | touchedNamespaces with (defs.options.session.showUnusedImportsWarning)
