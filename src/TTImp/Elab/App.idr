@@ -822,7 +822,7 @@ checkApp rig elabinfo nest env fc (IVar fc' n) expargs autoargs namedargs exp
            !(checkAppWith rig elabinfo nest env fc ntm nty (Just fn, arglen) expargs autoargs namedargs False exp)
   where
     -- we touch the return type because currently Idris requires such types'
-    -- modules are imported explicitly. If in the future Idris learnes how to
+    -- modules are imported explicitly. If in the future Idris learns how to
     -- implicitly re-export types that are returned from functions from modules
     -- defining those functions, then using those functions will not need to
     -- 'touch' (i.e. require the import of) the module defining the return type.
