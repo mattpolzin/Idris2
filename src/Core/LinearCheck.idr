@@ -202,7 +202,9 @@ mutual
       used r = if isLinear r then [MkVar prf] else []
 
   lcheck rig erase env (Ref fc nt fn)
-      = do ty <- lcheckDef fc rig erase env fn
+      = do log "import.used" 20 "touch name during linearity checking of ref: \{show !(toFullNames fn)}."
+           touchNamespaceForName !(toFullNames fn)
+           ty <- lcheckDef fc rig erase env fn
            pure (Ref fc nt fn, gnf env (embed ty), [])
 
   -- If the meta has a definition, and we're not in Rig0, expand it first
