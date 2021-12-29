@@ -13,6 +13,8 @@ import CoolFactor
 import UseCoolFactor
 import TestType
 import ReturnsTestType
+import Record
+import UsedByRecord
 
 useBar : String
 useBar = Bar.dep1
@@ -43,4 +45,12 @@ useViaSearch = cool "beans"
 useTestType : ()
 useTestType = let x = retType
               in  ()
+
+-- Test the case where the record needs `ThisThing` defined even though
+-- this function does not use it (creates Nothing instead of Just a ThisThing).
+-- Linearity checking is where the def ends up being required.
+useRecord : UsualSuspect
+useRecord = MkUsual {
+  storage = Nothing
+}
 
