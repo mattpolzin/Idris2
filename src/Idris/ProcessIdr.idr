@@ -39,6 +39,7 @@ import Idris.Doc.String
 
 import Data.List
 import Libraries.Data.SortedMap
+import Libraries.Data.SortedSet
 
 import System.File
 
