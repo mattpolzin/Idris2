@@ -23,7 +23,6 @@ import Data.String
 import System.Directory
 
 import Libraries.Data.StringMap
-import Libraries.Data.String.Extra as Extra
 
 %default covering
 
