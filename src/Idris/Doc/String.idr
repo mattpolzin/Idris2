@@ -17,7 +17,6 @@ import TTImp.TTImp.Functor
 import TTImp.Elab.Prim
 
 import Data.List
-import Data.List1
 import Data.Maybe
 import Data.String
 

@@ -8,11 +8,8 @@ import Libraries.Text.Lexer
 import Parser.Lexer.Common
 import Parser.Source
 import Parser.Lexer.Source
-import Libraries.Text.Token
 import Libraries.Text.Lexer.Tokenizer
 import Libraries.Text.Parser
-
-import Core.Metadata
 
 %default total
 

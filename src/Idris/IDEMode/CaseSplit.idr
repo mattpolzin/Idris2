@@ -21,7 +21,6 @@ import Idris.Resugar
 import Idris.Syntax
 
 import Data.List
-import Data.List1
 import Data.List.Views
 import Data.SnocList
 import Libraries.Data.List.Extra

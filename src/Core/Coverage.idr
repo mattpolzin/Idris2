@@ -11,7 +11,6 @@ import Core.Value
 
 import Data.List
 import Data.Maybe
-import Data.String
 
 import Libraries.Data.NameMap
 import Libraries.Data.String.Extra

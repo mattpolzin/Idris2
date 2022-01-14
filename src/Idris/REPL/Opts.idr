@@ -7,7 +7,6 @@ import TTImp.Interactive.ExprSearch
 import TTImp.TTImp
 
 import Data.List
-import Data.List1
 import Libraries.Data.List.Extra
 import Data.String
 import System.File
