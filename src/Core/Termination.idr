@@ -185,6 +185,8 @@ mutual
              (_, Ref fc Func fn, args) =>
                  do logC "totality" 50 $
                        pure $ "Looking up type of " ++ show !(toFullNames fn)
+                    log "import.used" 20 "touch name during totality checking of ref: \{show !(toFullNames fn)}."
+                    touchNamespaceForName !(toFullNames fn)
                     Just ty <- lookupTyExact fn (gamma defs)
                          | Nothing => do
                               log "totality" 50 $ "Lookup failed"
