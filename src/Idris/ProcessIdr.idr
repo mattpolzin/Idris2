@@ -292,9 +292,9 @@ warnUnusedImports filename = do
                (x :: xs) => do
                   recordWarning (UnusedImports filename (show <$> (x ::: xs)))
 
-||| Process everything in the module; return the syntax information which
-||| needs to be written to the TTC (e.g. exported infix operators)
-||| Returns 'Nothing' if it didn't reload anything
+||| Process everything in the module, including the syntax information which
+||| needs to be written to the TTC (e.g. exported infix operators).
+||| Returns 'Nothing' if it didn't reload anything, otherwise a list or errors.
 processMod : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
@@ -367,11 +367,10 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                 initHash
                 traverse_ addPublicHash (sort importMetas)
                 resetNextVar
-                when (ns /= nsAsModuleIdent mainNS) $
-                      when (ns /= origin) $
-                          throw (GenericMsg mod.headerLoc
-                                   ("Module name " ++ show ns ++
-                                    " does not match file name " ++ show sourceFileName))
+                when (ns /= nsAsModuleIdent mainNS && ns /= origin) $
+                  throw (GenericMsg mod.headerLoc
+                           ("Module name " ++ show ns ++
+                            " does not match file name " ++ show sourceFileName))
 
                 -- read import ttcs in full here
                 -- Note: We should only import .ttc - assumption is that there's
