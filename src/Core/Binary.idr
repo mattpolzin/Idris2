@@ -469,6 +469,7 @@ readFromTTC nestedns loc reexp fname modNS importAs
                     let ex = extraData ttc
                     pure (Just (ex, ifaceHash ttc, imported ttc))
             else do
+               addModuleNamespace modNS importAs
                ttc <- readTTCFile True fname as bin
                let ex = extraData ttc
                traverse_ (addGlobalDef modNS (currentNS ttc) as) (context ttc)

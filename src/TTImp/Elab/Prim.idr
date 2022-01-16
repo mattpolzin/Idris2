@@ -7,6 +7,7 @@ import Core.TT
 ttype : FC -> Term vars
 ttype fc = TType fc (MN "top" 0)
 
+||| Get a tuple of (value, type), both terms, for any of the primitives.
 export
 checkPrim : FC -> Constant -> (Term vars, Term vars)
 checkPrim fc (I i) = (PrimVal fc (I i), PrimVal fc IntType)

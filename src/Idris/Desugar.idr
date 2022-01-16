@@ -91,6 +91,7 @@ mkPrec Infix p = NonAssoc p
 mkPrec Prefix p = Prefix p
 
 toTokList : {auto s : Ref Syn SyntaxInfo} ->
+            {auto c : Ref Ctxt Defs} ->
             PTerm -> Core (List (Tok OpStr PTerm))
 toTokList (POp fc opFC opn l r)
     = do syn <- get Syn
@@ -105,6 +106,9 @@ toTokList (POp fc opFC opn l r)
                       throw (GenericMsg fc $ "'" ++ op ++ "' is a prefix operator")
               Just (fixityFc, fix, prec) =>
                    do rtoks <- toTokList r
+                      whenJust (isConcreteIdrisSrc fixityFc) $ \(mod, _, _) =>
+                        do log "import.used" 20 "touch operator fixity namespace during desugaring: \{show mod} .. \{show !(toFullNames opn)}."
+                           touchNamespace (miAsNamespace mod)
                       pure (Expr l :: Op fc opFC opn (mkPrec fix prec) :: rtoks)
   where
     backtickPrec : OpPrec
@@ -117,6 +121,9 @@ toTokList (PPrefixOp fc opFC opn arg)
                    throw (GenericMsg fc $ "'" ++ op ++ "' is not a prefix operator")
               Just (fixityFc, prec) =>
                    do rtoks <- toTokList arg
+                      whenJust (isConcreteIdrisSrc fixityFc) $ \(mod, _, _) =>
+                        do log "import.used" 20 "touch operator fixity namespace during desugaring: \{show mod} .. \{show !(toFullNames opn)}."
+                           touchNamespace (miAsNamespace mod)
                       pure (Op fc opFC opn (Prefix prec) :: rtoks)
 toTokList t = pure [Expr t]
 

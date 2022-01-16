@@ -78,6 +78,12 @@ public export
 NonEmptyFC : Type
 NonEmptyFC = (OriginDesc, FilePos, FilePos)
 
+||| A file context that definitely points to Idris
+||| source code.
+public export
+IdrisSourceFC : Type
+IdrisSourceFC = (ModuleIdent, FilePos, FilePos)
+
 ------------------------------------------------------------------------
 -- Conversion between NonEmptyFC and FC
 
@@ -93,11 +99,19 @@ isNonEmptyFC (MkFC fn start end) = Just (fn, start, end)
 isNonEmptyFC (MkVirtualFC fn start end) = Just (fn, start, end)
 isNonEmptyFC EmptyFC = Nothing
 
-||| A view checking whether an arbitrary FC originates from a source location
+||| A view checking whether an arbitrary FC originates from an
+||| Idris code or package manifest source location.
 export
 isConcreteFC : FC -> Maybe NonEmptyFC
 isConcreteFC (MkFC fn start end) = Just (fn, start, end)
 isConcreteFC _ = Nothing
+
+||| A view checking whether an arbitrary FC originates from an Idris source
+||| location.
+export
+isConcreteIdrisSrc : FC -> Maybe IdrisSourceFC
+isConcreteIdrisSrc (MkFC (PhysicalIdrSrc ident) start end) = Just (ident, start, end)
+isConcreteIdrisSrc _ = Nothing
 
 ||| Turn an FC into a virtual one
 export
