@@ -15,6 +15,7 @@ import TestType
 import ReturnsTestType
 import Record
 import UsedByRecord
+import OnlyFixity
 
 useBar : String
 useBar = Bar.dep1
@@ -53,4 +54,12 @@ useRecord : UsualSuspect
 useRecord = MkUsual {
   storage = Nothing
 }
+
+-- define an operator for which a fixity is defined in a different module
+(.-=) : String -> String -> ()
+(.-=) _ _ = ()
+-- and use that operator (or else the module in question is not actually
+-- a needed import).
+useOpeartor : ()
+useOpeartor = "hello" .-= "world"
 
