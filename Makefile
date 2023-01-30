@@ -197,8 +197,6 @@ install-idris2:
 ifeq ($(OS), windows)
 	-install ${TARGET}.cmd ${PREFIX}/bin
 endif
-	mkdir -p ${PREFIX}/lib/
-	install support/c/${IDRIS2_SUPPORT} ${PREFIX}/lib
 	mkdir -p ${PREFIX}/bin/${NAME}_app
 	install ${TARGETDIR}/${NAME}_app/* ${PREFIX}/bin/${NAME}_app
 
