@@ -1,6 +1,8 @@
-{ stdenv, lib, chez, clang, gmp, fetchFromGitHub, makeWrapper, idris2-version
+{ stdenv, lib, callPackage, chez, clang, gmp, fetchFromGitHub, makeWrapper, idris2-version
 , srcRev, gambit, nodejs, zsh, idris2Bootstrap ? null }:
 
+let support = callPackage ./support.nix { inherit idris2-version; };
+in
 # Uses scheme to bootstrap the build of idris2
 stdenv.mkDerivation rec {
   pname = "idris2";
@@ -12,7 +14,7 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ makeWrapper clang chez ]
     ++ lib.optional stdenv.isDarwin [ zsh ]
     ++ lib.optional (!(idris2Bootstrap == null)) [ idris2Bootstrap ];
-  buildInputs = [ chez gmp ];
+  buildInputs = [ chez gmp support ];
 
   prePatch = ''
     patchShebangs --build tests
@@ -27,6 +29,14 @@ stdenv.mkDerivation rec {
 
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [ "INTERACTIVE=" ];
+
+  # skip over install-support because we've already
+  # installed support as its own derivation so we
+  # just need to copy some files from it in postInstall
+  installTargets = ''
+    install-idris2
+    install-libs
+  '';
 
   # TODO: Move this into its own derivation, such that this can be changed
   #       without having to recompile idris2 every time.
@@ -47,19 +57,19 @@ stdenv.mkDerivation rec {
     rm $out/bin/idris2_app/*
     rmdir $out/bin/idris2_app
 
+    # We need to snag some support files from the support
+    # derivation
+    cp -r ${support}/support $out/${name}/support
+
     # idris2 needs to find scheme at runtime to compile
     # idris2 installs packages with --install into the path given by
     #   IDRIS2_PREFIX. We set that to a default of ~/.idris2, to mirror the
     #   behaviour of the standard Makefile install.
-    # TODO: Make support libraries their own derivation such that
-    #       overriding LD_LIBRARY_PATH is unnecessary
     wrapProgram "$out/bin/idris2" \
       --set-default CHEZ "${chez}/bin/scheme" \
       --run 'export IDRIS2_PREFIX=''${IDRIS2_PREFIX-"$HOME/.idris2"}' \
       --suffix IDRIS2_LIBS ':' "$out/${name}/lib" \
       --suffix IDRIS2_DATA ':' "$out/${name}/support" \
-      --suffix IDRIS2_PACKAGE_PATH ':' "${globalLibrariesPath}" \
-      --suffix DYLD_LIBRARY_PATH ':' "$out/${name}/lib" \
-      --suffix LD_LIBRARY_PATH ':' "$out/${name}/lib"
+      --suffix IDRIS2_PACKAGE_PATH ':' "${globalLibrariesPath}"
   '';
 }
