@@ -1,3 +1,4 @@
+include ../config.mk
 
 .PHONY: build build-c build-refc build-chez
 
@@ -23,7 +24,7 @@ clean-refc:
 	@${MAKE} -C refc cleandep
 
 clean-chez:
-	@{MAKE} -C chez clean
+	@${MAKE} -C chez clean
 
 .PHONY: install install-docs install-racket install-gambit install-js install-c install-refc install-chez
 
