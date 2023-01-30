@@ -48,6 +48,7 @@ stdenv.mkDerivation rec {
       "$out/${name}"
     ];
     globalLibrariesPath = builtins.concatStringsSep ":" globalLibraries;
+    supportLibPath = lib.makeLibraryPath [ support ];
   in ''
     # Remove existing idris2 wrapper that sets incorrect LD_LIBRARY_PATH
     rm $out/bin/idris2
@@ -68,8 +69,10 @@ stdenv.mkDerivation rec {
     wrapProgram "$out/bin/idris2" \
       --set-default CHEZ "${chez}/bin/scheme" \
       --run 'export IDRIS2_PREFIX=''${IDRIS2_PREFIX-"$HOME/.idris2"}' \
-      --suffix IDRIS2_LIBS ':' "$out/${name}/lib" \
+      --suffix IDRIS2_LIBS ':' "${supportLibPath}" \
       --suffix IDRIS2_DATA ':' "$out/${name}/support" \
-      --suffix IDRIS2_PACKAGE_PATH ':' "${globalLibrariesPath}"
+      --suffix IDRIS2_PACKAGE_PATH ':' "${globalLibrariesPath}" \
+      --suffix LD_LIBRARY_PATH ':' "${supportLibPath}" \
+      --suffix DYLD_LIBRARY_PATH ':' "${supportLibPath}"
   '';
 }
