@@ -7,7 +7,7 @@ on:
 jobs:
   build-idris:
     runs-on: ubuntu-latest
-    if: ${{ github.event.label.name == 'check: pack'}}
+    if: ${{ github.event.label.url == 'https://github.com/mattpolzin/Idris2/labels/check%3A%20pack'}}
     env:
       IDRIS2_CG: chez
       SCHEME: scheme
@@ -45,7 +45,7 @@ jobs:
     name: Check pack's package collection
     needs: [build-idris]
     runs-on: ubuntu-latest
-    if: ${{ github.event.label.name == 'check: pack'}}
+    if: ${{ github.event.label.url == 'https://github.com/mattpolzin/Idris2/labels/check%3A%20pack'}}
     env:
       IDRIS2_CG: chez
       SCHEME: scheme
