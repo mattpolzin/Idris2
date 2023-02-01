@@ -1,0 +1,89 @@
+name: Triggered Workflow
+
+on:
+  pull_request:
+    types: [ "labeled" ]
+
+jobs:
+  build-idris:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.label.name == 'check: pack'}}
+    env:
+      IDRIS2_CG: chez
+      SCHEME: scheme
+    steps:
+      # Get our hands on Idris either by using the cache
+      # or by rebuilding it if necessary.
+      - name: Cache Chez Idris
+        id: idris-cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.idris2/
+          key: ${{ runner.os }}-idris2-chez-label-triggered
+      - name: Checkout
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v3
+      - name: Install build dependencies
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chezscheme
+          echo "$HOME/.idris2/bin" >> "$GITHUB_PATH"
+      - name: Make bootstrap folder readonly
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        run: chmod -R a-w bootstrap
+      - name: Build from bootstrap
+        if: steps.idris-cache.outputs.cache-hit != 'true'
+        run: make bootstrap && make install
+      - name: Artifact Bootstrapped Idris2
+        uses: actions/upload-artifact@v3
+        with:
+          name: idris2-chez-label-triggered
+          path: ~/.idris2/
+
+  ubuntu-test-pack:
+    name: Check pack's package collection
+    needs: [build-idris]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.label.name == 'check: pack'}}
+    env:
+      IDRIS2_CG: chez
+      SCHEME: scheme
+      PACK_DIR: ~/.pack
+    strategy:
+      fail-fast: false
+    container: ghcr.io/stefan-hoeck/idris2-pack:latest
+    steps:
+      - name: Download Idris2 Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: idris2-chez-label-triggered
+          path: ~/.idris2/
+      - name: Install Idris build dependencies
+        run: |
+          apt-get update
+          apt-get install -y chezscheme
+          echo "$HOME/.idris2/bin" >> "$GITHUB_PATH"
+          chmod +x "$HOME/.idris2/bin/idris2" "$HOME/.idris2/bin/idris2_app/"*
+      - name: Install package build dependencies
+        run: |
+          apt-get install -y libgsl-dev
+          apt-get install -y libpq-dev
+          # ncurses-idris:
+          apt-get install -y libncurses-dev libc6-dev
+          # idrisGL:
+          apt-get install -y libsdl1.2-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-gfx-dev libsdl2-mixer-dev
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: 'stefan-hoeck/idris2-pack-db'
+      - name: Use latest pack commit
+        run: pack update
+      - name: Install pack-admin
+        run: pack --no-prompt install-app pack-admin
+      - name: Copy HEAD
+        run: cp collections/HEAD.toml "$PACK_DIR/db/HEAD.toml"
+      - name: Extract Collection from HEAD
+        run: pack-admin --no-prompt extract-from-head "$PACK_DIR/db/testdb.toml"
+      - name: Check Collection
+        run: pack-admin --no-prompt check-collection testdb STATUS.md
