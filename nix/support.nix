@@ -12,9 +12,7 @@ stdenv.mkDerivation rec {
     "PREFIX=$(out)"
   ] ++ lib.optional stdenv.isDarwin "OS=";
 
-  buildPhase = ''
-    make support
-  '';
+  buildFlags = [ "support" ];
 
   installTargets = "install-support";
 
