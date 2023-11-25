@@ -247,16 +247,29 @@ install-libdocs: libdocs
 
 .PHONY: bootstrap bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
 
-# Bootstrapping using SCHEME
-bootstrap: support
+pre-bootstrap:
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \
 		echo "ERROR: Chez is missing threading support" ; exit 1 ; fi
 	mkdir -p bootstrap-build/idris2_app
+
+# Bootstrapping using SCHEME
+bootstrap: support pre-bootstrap
 	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
 	sed 's/libidris2_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
 		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/idris2_app/idris2-boot.ss
 	$(SHELL) ./bootstrap-stage1-chez.sh
+	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
+
+# Bootstrapping using SCHEME without building support; support must have been explicitly built
+# previously and you must set the DYLIB_PATH environment variable to the location containing the
+# support/lib folder (i.e. "/some/location/support/lib", the lib folder suffix should be included).
+bootstrap-without-support: pre-bootstrap
+	sed 's/libidris2_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
+		bootstrap/idris2_app/idris2.ss \
+		> bootstrap-build/idris2_app/idris2-boot.ss
+	$(SHELL) ./bootstrap-stage1-chez.sh
+	export DYLIB_PATH && \
 	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
 
 # Bootstrapping using racket

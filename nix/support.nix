@@ -1,6 +1,6 @@
 { stdenv, lib, gmp, idris2-version }:
 stdenv.mkDerivation rec {
-  pname = "libidris2_suport";
+  pname = "libidris2_support";
   version = idris2-version;
 
   src = ../.;
