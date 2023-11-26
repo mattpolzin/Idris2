@@ -250,8 +250,8 @@ install-libdocs: libdocs
 
 # Bootstrapping using SCHEME
 #
-# If you are bootstrapping using SCHEME without building support, support must have been explicitly
-# built previously and you must set the DYLIB_PATH and DATA_PATH environment variables to the
+# If you are bootstrapping using SCHEME _without building support_, support must have been explicitly
+# built previously and you must set the LD_LIBRARY_PATH and IDRIS2_DATA environment variables to the
 # locations of the lib and support folders (i.e. "/some/location/lib" and "/some/location/support").
 bootstrap: support
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \
@@ -264,7 +264,7 @@ endif
 		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/idris2_app/idris2-boot.ss
 	$(SHELL) ./bootstrap-stage1-chez.sh
-	export DYLIB_PATH && export DATA_PATH && \
+#	export LD_LIBRARY_PATH && export DYLD_LIBRARY_PATH && export IDRIS2_DATA && \
 	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
 
 # Bootstrapping using racket
@@ -277,6 +277,7 @@ endif
 		bootstrap/idris2_app/idris2.rkt \
 		> bootstrap-build/idris2_app/idris2-boot.rkt
 	$(SHELL) ./bootstrap-stage1-racket.sh
+	export LD_LIBRARY_PATH && export DYLD_LIBRARY_PATH && export IDRIS2_DATA && \
 	IDRIS2_CG="racket" $(SHELL) ./bootstrap-stage2.sh
 
 bootstrap-test:
