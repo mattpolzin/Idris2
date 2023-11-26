@@ -9,7 +9,6 @@ IDRIS2_CG="${IDRIS2_CG-"chez"}"
 # BOOTSTRAP_PREFIX must be the "clean" build root, without cygpath -m
 # Otherwise, we get 'git: Bad address'
 echo "$BOOTSTRAP_PREFIX"
-SUPPORT_PATH=${SUPPORT_PATH:-"$BOOTSTRAP_PREFIX"}
 DYLIB_PATH="${DYLIB_PATH:-"${BOOTSTRAP_PREFIX}/lib"}"
 DATA_PATH="${DATA_PATH:-"${BOOTSTRAP_PREFIX}/support"}"
 
