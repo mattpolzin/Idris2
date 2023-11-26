@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
   # The name of the main executable of pkgs.chez is `scheme`
   buildFlags =
     if idris2Bootstrap == null
-    then [ "bootstrap" "SCHEME=scheme" "DYLIB_PATH=${support}/lib" ]
+    then [ "bootstrap" "SCHEME=scheme" "DYLIB_PATH=${support}/lib" "DATA_PATH=${support}/share"]
     else [ ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
