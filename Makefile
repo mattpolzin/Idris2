@@ -57,7 +57,7 @@ export IDRIS2_BOOT_PATH := "$(IDRIS2_BOOT_PATH)"
 
 export SCHEME
 
-.PHONY: all all-without-support idris2-exec libdocs testenv testenv-clean support clean-support clean FORCE
+.PHONY: all idris2-exec libdocs testenv testenv-clean support clean-support clean FORCE
 
 all:
 	${MAKE} ${TARGET}
@@ -67,13 +67,9 @@ idris2-exec: ${TARGET}
 
 ${TARGET}: support src/IdrisPaths.idr
 	${IDRIS2_BOOT} --build ${IDRIS2_APP_IPKG}
+ifeq ($(SKIP_SUPPORT),)
 	cp ${IDRIS2_CURDIR}/support/c/${IDRIS2_SUPPORT} ${TARGETDIR}/${NAME}_app/${IDRIS2_SUPPORT}
-
-# facilitates building in environments where the support target is explicitly
-# built separately ahead of time:
-all-without-support: src/IdrisPaths.idr
-	${IDRIS2_BOOT} --build ${IDRIS2_APP_IPKG}
-	${MAKE} libs
+endif
 
 # We use FORCE to always rebuild IdrisPath so that the git SHA1 info is always up to date
 src/IdrisPaths.idr: FORCE
@@ -171,7 +167,9 @@ test-installed:
 	@${MAKE} -C tests only=$(only) IDRIS2=$(IDRIS2_PREFIX)/bin/idris2 IDRIS2_PREFIX=${IDRIS2_PREFIX}
 
 support:
+ifeq ($(SKIP_SUPPORT),)
 	@${MAKE} -C support
+endif
 
 clean-support:
 	@${MAKE} -C support clean
@@ -210,7 +208,9 @@ endif
 	install ${TARGETDIR}/${NAME}_app/* ${DESTDIR}${PREFIX}/bin/${NAME}_app
 
 install-support:
+ifeq ($(SKIP_SUPPORT),)
 	@${MAKE} -C support install
+endif
 
 install-bootstrap-libs:
 	${MAKE} -C libs/prelude install IDRIS2=${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH} IDRIS2_INC_CGS=${IDRIS2_CG}
@@ -246,26 +246,20 @@ install-libdocs: libdocs
 	install -m 644 support/docs/*   ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs
 
 
-.PHONY: bootstrap bootstrap-without-support bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
+.PHONY: bootstrap bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
 
-pre-bootstrap:
+# Bootstrapping using SCHEME
+#
+# If you are bootstrapping using SCHEME without building support, support must have been explicitly built
+# previously and you must set the DYLIB_PATH environment variable to the location containing the
+# support/lib folder (i.e. "/some/location/support/lib", the lib folder suffix should be included).
+bootstrap: support
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \
 		echo "ERROR: Chez is missing threading support" ; exit 1 ; fi
 	mkdir -p bootstrap-build/idris2_app
-
-# Bootstrapping using SCHEME
-bootstrap: support pre-bootstrap
+ifeq ($(SKIP_SUPPORT),)
 	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
-	sed 's/libidris2_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
-		bootstrap/idris2_app/idris2.ss \
-		> bootstrap-build/idris2_app/idris2-boot.ss
-	$(SHELL) ./bootstrap-stage1-chez.sh
-	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
-
-# Bootstrapping using SCHEME without building support; support must have been explicitly built
-# previously and you must set the DYLIB_PATH environment variable to the location containing the
-# support/lib folder (i.e. "/some/location/support/lib", the lib folder suffix should be included).
-bootstrap-without-support: pre-bootstrap
+endif
 	sed 's/libidris2_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
 		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/idris2_app/idris2-boot.ss
@@ -276,7 +270,9 @@ bootstrap-without-support: pre-bootstrap
 # Bootstrapping using racket
 bootstrap-racket: support
 	mkdir -p bootstrap-build/idris2_app
+ifeq ($(SKIP_SUPPORT),)
 	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
+endif
 	sed 's|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
 		bootstrap/idris2_app/idris2.rkt \
 		> bootstrap-build/idris2_app/idris2-boot.rkt

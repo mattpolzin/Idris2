@@ -19,13 +19,14 @@ stdenv.mkDerivation rec {
     sed 's/$(GIT_SHA1)/${srcRev}/' -i Makefile
   '';
 
-  makeFlags = [ "PREFIX=$(out)" ] ++ lib.optional stdenv.isDarwin "OS=";
+  # SKIP_SUPPORT becuase it is built as its own derivation.
+  makeFlags = [ "PREFIX=$(out)" "SKIP_SUPPORT=true" ] ++ lib.optional stdenv.isDarwin "OS=";
 
   # The name of the main executable of pkgs.chez is `scheme`
   buildFlags =
     if idris2Bootstrap == null
-    then [ "bootstrap-without-support" "SCHEME=scheme" "DYLIB_PATH=${support}/lib" ]
-    else [ "all-without-support" ];
+    then [ "bootstrap" "SCHEME=scheme" "DYLIB_PATH=${support}/lib" ]
+    else [ ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [ "INTERACTIVE=" ];
