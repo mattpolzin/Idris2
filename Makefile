@@ -57,7 +57,7 @@ export IDRIS2_BOOT_PATH := "$(IDRIS2_BOOT_PATH)"
 
 export SCHEME
 
-.PHONY: all idris2-exec libdocs testenv testenv-clean support clean-support clean FORCE
+.PHONY: all all-without-support idris2-exec libdocs testenv testenv-clean support clean-support clean FORCE
 
 all:
 	${MAKE} ${TARGET}
@@ -71,8 +71,9 @@ ${TARGET}: support src/IdrisPaths.idr
 
 # facilitates building in environments where the support target is explicitly
 # built separately ahead of time:
-idris2-without-support: src/IdrisPaths.idr
+all-without-support: src/IdrisPaths.idr
 	${IDRIS2_BOOT} --build ${IDRIS2_APP_IPKG}
+	${MAKE} libs
 
 # We use FORCE to always rebuild IdrisPath so that the git SHA1 info is always up to date
 src/IdrisPaths.idr: FORCE
@@ -245,7 +246,7 @@ install-libdocs: libdocs
 	install -m 644 support/docs/*   ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs
 
 
-.PHONY: bootstrap bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
+.PHONY: bootstrap bootstrap-without-support bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
 
 pre-bootstrap:
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \

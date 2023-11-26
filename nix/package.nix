@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
   buildFlags =
     if idris2Bootstrap == null
     then [ "bootstrap-without-support" "SCHEME=scheme" "DYLIB_PATH=${support}/lib" ]
-    else [ "idris2-without-support" ];
+    else [ "all-without-support" ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [ "INTERACTIVE=" ];
