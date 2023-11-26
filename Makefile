@@ -264,7 +264,7 @@ endif
 		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/idris2_app/idris2-boot.ss
 	$(SHELL) ./bootstrap-stage1-chez.sh
-	export DYLIB_PATH && export DATA_PATH \
+	export DYLIB_PATH && export DATA_PATH && \
 	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
 
 # Bootstrapping using racket
