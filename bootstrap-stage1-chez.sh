@@ -20,5 +20,9 @@ ${SCHEME} --script ../bootstrap/compile.ss
 # Put the result in the usual place where the target goes
 mkdir -p ../build/exec
 mkdir -p ../build/exec/idris2_app
-install ../bootstrap/idris2-boot.sh ../build/exec/idris2
+echo '#!/bin/sh' > ../build/exec/idris2
+echo "SCHEME=${SCHEME}" >> ../build/exec/idris2
+cat ../bootstrap/idris2-boot.sh >> ../build/exec/idris2
+chmod +x ../build/exec/idris2
 install idris2_app/* ../build/exec/idris2_app
+echo 'bootstrap stage 1 complete'

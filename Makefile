@@ -247,7 +247,9 @@ install-libdocs: libdocs
 	cp -r libs/network/build/docs/* ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/network
 	cp -r libs/test/build/docs/*    ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/test
 	cp -r libs/linear/build/docs/*  ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/linear
+ifeq ($(SKIP_SUPPORT),)
 	install -m 644 support/docs/*   ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs
+endif
 
 
 .PHONY: bootstrap bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
@@ -268,7 +270,6 @@ endif
 		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/idris2_app/idris2-boot.ss
 	$(SHELL) ./bootstrap-stage1-chez.sh
-#	export LD_LIBRARY_PATH && export DYLD_LIBRARY_PATH && export IDRIS2_DATA && \
 	IDRIS2_CG="chez" $(SHELL) ./bootstrap-stage2.sh
 
 # Bootstrapping using racket

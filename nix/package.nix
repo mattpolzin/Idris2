@@ -2,6 +2,9 @@
 , srcRev, gambit, nodejs, zsh, idris2Bootstrap ? null }:
 
 # Uses scheme to bootstrap the build of idris2
+let
+  bootstrap = idris2Bootstrap == null;
+in
 stdenv.mkDerivation rec {
   pname = "idris2";
   version = idris2-version;
@@ -11,7 +14,7 @@ stdenv.mkDerivation rec {
   strictDeps = true;
   nativeBuildInputs = [ makeWrapper clang chez ]
     ++ lib.optional stdenv.isDarwin [ zsh ]
-    ++ lib.optional (!(idris2Bootstrap == null)) [ idris2Bootstrap ];
+    ++ lib.optional (! bootstrap) [ idris2Bootstrap ];
   buildInputs = [ chez gmp support ];
 
   prePatch = ''
@@ -24,32 +27,24 @@ stdenv.mkDerivation rec {
 
   # The name of the main executable of pkgs.chez is `scheme`
   buildFlags =
-    if idris2Bootstrap == null
-    then [ "bootstrap" "SCHEME=scheme"
-           "LD_LIBRARY_PATH=${support}/lib"
-           "DYLD_LIBRARY_PATH=${support}/lib"
-           "IDRIS2_DATA=${support}/share"
-         ]
-    else [ ];
+    lib.optional bootstrap
+    [ "bootstrap" "SCHEME=scheme"
+      "LD_LIBRARY_PATH=${support}/lib"
+      "DYLD_LIBRARY_PATH=${support}/lib"
+      "IDRIS2_DATA=${support}/share"
+    ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [ "INTERACTIVE=" ];
 
-  # skip over installing support because we've already built that as a separate
-  # derivation.
-  installTargets = ''
-    install-idris2
-    install-libs
-  '';
-
   # TODO: Move this into its own derivation, such that this can be changed
   #       without having to recompile idris2 every time.
   postInstall = let
-    name = "${pname}-${version}";
+    folderName = "${pname}-${version}";
     globalLibraries = [
-      "\\$HOME/.nix-profile/lib/${name}"
-      "/run/current-system/sw/lib/${name}"
-      "$out/${name}"
+      "\\$HOME/.nix-profile/lib/${folderName}"
+      "/run/current-system/sw/lib/${folderName}"
+      "$out/${folderName}"
     ];
     globalLibrariesPath = builtins.concatStringsSep ":" globalLibraries;
     supportLibrariesPath = lib.makeLibraryPath [ support ];

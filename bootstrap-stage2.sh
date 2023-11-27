@@ -22,3 +22,4 @@ $MAKE bootstrap-install IDRIS2_CG="$IDRIS2_CG" \
 $MAKE clean-libs IDRIS2_BOOT="$BOOTSTRAP_PREFIX/bin/idris2"
 $MAKE all IDRIS2_BOOT="$BOOTSTRAP_PREFIX/bin/idris2" IDRIS2_CG="$IDRIS2_CG" \
     SCHEME="$SCHEME"
+echo 'bootstrap stage 2 complete'
