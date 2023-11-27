@@ -39,6 +39,12 @@ stdenv.mkDerivation rec {
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [ "INTERACTIVE=" ];
 
+  installFlags =
+    lib.optional bootstrap
+    [ "LD_LIBRARY_PATH=${supportLibrariesPath}"
+      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+    ];
+
   # TODO: Move this into its own derivation, such that this can be changed
   #       without having to recompile idris2 every time.
   postInstall = let
