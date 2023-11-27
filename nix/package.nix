@@ -4,6 +4,8 @@
 # Uses scheme to bootstrap the build of idris2
 let
   bootstrap = idris2Bootstrap == null;
+  supportLibrariesPath = lib.makeLibraryPath [ support ];
+  supportSharePath = lib.makeSearchPath "share" [ support ];
 in
 stdenv.mkDerivation rec {
   pname = "idris2";
@@ -29,9 +31,9 @@ stdenv.mkDerivation rec {
   buildFlags =
     lib.optional bootstrap
     [ "bootstrap" "SCHEME=scheme"
-      "LD_LIBRARY_PATH=${support}/lib"
-      "DYLD_LIBRARY_PATH=${support}/lib"
-      "IDRIS2_DATA=${support}/share"
+      "LD_LIBRARY_PATH=${supportLibrariesPath}"
+      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+      "IDRIS2_DATA=${supportSharePath}"
     ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
@@ -47,7 +49,6 @@ stdenv.mkDerivation rec {
       "$out/${folderName}"
     ];
     globalLibrariesPath = builtins.concatStringsSep ":" globalLibraries;
-    supportLibrariesPath = lib.makeLibraryPath [ support ];
   in ''
     # Remove existing idris2 wrapper that sets incorrect LD_LIBRARY_PATH
     rm $out/bin/idris2
@@ -65,7 +66,7 @@ stdenv.mkDerivation rec {
       --set-default CHEZ "${chez}/bin/scheme" \
       --run 'export IDRIS2_PREFIX=''${IDRIS2_PREFIX-"$HOME/.idris2"}' \
       --suffix IDRIS2_LIBS ':' "${supportLibrariesPath}" \
-      --suffix IDRIS2_DATA ':' "${support}/share" \
+      --suffix IDRIS2_DATA ':' "${supportSharePath}" \
       --suffix IDRIS2_PACKAGE_PATH ':' "${globalLibrariesPath}" \
       --suffix LD_LIBRARY_PATH ':' "${supportLibrariesPath}" \
       --suffix DYLD_LIBRARY_PATH ':' "${supportLibrariesPath}" \
