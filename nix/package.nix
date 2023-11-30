@@ -25,7 +25,7 @@ stdenv.mkDerivation rec {
   '';
 
   # SKIP_SUPPORT becuase it is built as its own derivation.
-  makeFlags = [ "PREFIX=$(out)" "SKIP_SUPPORT=true" ] ++ lib.optional stdenv.isDarwin "OS=";
+  makeFlags = [ "SKIP_SUPPORT=true" ] ++ lib.optional stdenv.isDarwin "OS=";
 
   # The name of the main executable of pkgs.chez is `scheme`
   buildFlags =
@@ -34,15 +34,24 @@ stdenv.mkDerivation rec {
       "LD_LIBRARY_PATH=${supportLibrariesPath}"
       "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
       "IDRIS2_DATA=${supportSharePath}"
+      "PREFIX=$(out)"
     ];
 
   checkInputs = [ gambit nodejs ]; # racket ];
-  checkFlags = [ "INTERACTIVE=" ];
+  checkFlags = [
+    "test"
+    "INTERACTIVE="
+  ];
+
+#  checkPhase = ''
+#    make test INTERACTIVE=
+#  '';
 
   installFlags =
     lib.optional bootstrap
     [ "LD_LIBRARY_PATH=${supportLibrariesPath}"
       "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+      "PREFIX=$(out)"
     ];
 
   # TODO: Move this into its own derivation, such that this can be changed
