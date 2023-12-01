@@ -280,7 +280,6 @@ endif
 		bootstrap/idris2_app/idris2.rkt \
 		> bootstrap-build/idris2_app/idris2-boot.rkt
 	$(SHELL) ./bootstrap-stage1-racket.sh
-	export LD_LIBRARY_PATH && export DYLD_LIBRARY_PATH && export IDRIS2_DATA && \
 	IDRIS2_CG="racket" $(SHELL) ./bootstrap-stage2.sh
 
 bootstrap-test:

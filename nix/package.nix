@@ -34,20 +34,20 @@ stdenv.mkDerivation rec {
       "LD_LIBRARY_PATH=${supportLibrariesPath}"
       "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
       "IDRIS2_DATA=${supportSharePath}"
+      "IDRIS2_LIBS=${supportLibrariesPath}"
     ];
 
+  # checks happen against built compiler prior to the postInstall
+  # wrapper below so we must augment some paths to point at prebuilt
+  # support paths regardless of whether we are bootstrapping or not.
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [
     "INTERACTIVE="
     "LD_LIBRARY_PATH=${supportLibrariesPath}"
     "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
     "IDRIS2_DATA=${supportSharePath}"
-#    "IDRIS2_LIBS=${supportLibrariesPath}"
+    "IDRIS2_LIBS=${supportLibrariesPath}"
   ];
-
-#  checkPhase = ''
-#    make test INTERACTIVE=
-#  '';
 
   installFlags = [ "PREFIX=$(out)" ] ++
     lib.optional bootstrap [

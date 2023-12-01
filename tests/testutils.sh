@@ -48,9 +48,11 @@ if [ -z "$PREFIX_CHANGED" ] && [ -n "$IDRIS2_PREFIX" ]; then
     NEW_PP="$NEW_PREFIX/$NAME_VERSION"
 
     # Set where to look to installed stuff
-    export IDRIS2_PACKAGE_PATH="$OLD_PP$SEP$NEW_PP"
-    export IDRIS2_LIBS="$OLD_PP/libs$SEP$NEW_PP/libs"
-    export IDRIS2_DATA="$OLD_PP/support$SEP$NEW_PP/support"
+    # fallback to existing value of each env var included for testing builds
+    # where the support libraries were prebuilt.
+    export IDRIS2_PACKAGE_PATH="$OLD_PP$SEP$NEW_PP$SEP$IDRIS2_PACKAGE_PATH"
+    export IDRIS2_LIBS="$OLD_PP/libs$SEP$NEW_PP/libs$SEP$IDRIS2_LIBS"
+    export IDRIS2_DATA="$OLD_PP/support$SEP$NEW_PP/support$SEP$IDRIS2_DATA"
 
     # Set where to install stuff
     export IDRIS2_PREFIX="$NEW_PREFIX"
