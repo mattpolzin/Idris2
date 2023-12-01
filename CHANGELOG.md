@@ -32,11 +32,13 @@
   These features together give an ability to inspect whether particular expressions
   are recursive (including mutual recursion).
 
-### REPL changes
+### REPL/CLI changes
 
 * Adds documentation for unquotes `~( )`.
 * Adds documentation for laziness and codata primitives: `Lazy`, `Inf`, `Delay`,
   and `Force`.
+* Adds `--no-cse` command-line option to disable common subexpression elimination
+  for code generation debugging.
 
 ### Backend changes
 
@@ -152,6 +154,7 @@
   assumption in `setByte` that the value is between 0 and 255.
 
 * Adds RefC support for 16- and 32-bit access in `Data.Buffer`.
+
 * Add `Show` instance to `Data.Vect.Quantifiers.All` and add a few helpers for listy
   computations on the `All` type.
 * Add an alias for `HVect` to `All id` in `Data.Vect.Quantifiers.All`. This is the
@@ -199,7 +202,8 @@
 * Generalized `imapProperty` in `Data.List.Quantifiers.All.All`
   and `Data.Vect.Quantifiers.All.All`.
 
-* Add `zipPropertyWith`, `traverseProperty`, `traversePropertyRelevant` and `remember`
+* Add `zipPropertyWith`, `traverseProperty`, `traversePropertyRelevant`,
+  `mapPropertyRelevant`, `(++)`, `tabulate` and `remember`
   to `Data.Vect.Quantifiers.All.All`.
 
 * Add `anyToFin` to `Data.Vect.Quantifiers.Any`,
@@ -244,6 +248,8 @@
 
 * A more generalised way of applicative mapping of `TTImp` expression was added,
   called `mapATTImp`; the original `mapMTTimp` was implemented through the new one.
+
+* Adds `Data.Vect.foldrImplGoLemma`.
 
 #### System
 
