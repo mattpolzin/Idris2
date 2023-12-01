@@ -38,8 +38,11 @@ stdenv.mkDerivation rec {
 
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [
-    "test"
     "INTERACTIVE="
+    "LD_LIBRARY_PATH=${supportLibrariesPath}"
+    "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+    "IDRIS2_DATA=${supportSharePath}"
+#    "IDRIS2_LIBS=${supportLibrariesPath}"
   ];
 
 #  checkPhase = ''
