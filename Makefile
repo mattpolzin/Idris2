@@ -43,6 +43,8 @@ else
 	SEP := :
 endif
 
+IDRIS2_SUPPORT_DIR ?= ${IDRIS2_CURDIR}/support/c
+
 TEST_PREFIX ?= ${IDRIS2_CURDIR}/build/env
 
 # Library and data paths for bootstrap-test
@@ -67,9 +69,7 @@ idris2-exec: ${TARGET}
 
 ${TARGET}: support src/IdrisPaths.idr
 	${IDRIS2_BOOT} --build ${IDRIS2_APP_IPKG}
-ifeq ($(SKIP_SUPPORT),)
-	cp ${IDRIS2_CURDIR}/support/c/${IDRIS2_SUPPORT} ${TARGETDIR}/${NAME}_app/${IDRIS2_SUPPORT}
-endif
+	cp ${IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT} ${TARGETDIR}/${NAME}_app/${IDRIS2_SUPPORT}
 
 # We use FORCE to always rebuild IdrisPath so that the git SHA1 info is always up to date
 src/IdrisPaths.idr: FORCE
@@ -261,9 +261,7 @@ bootstrap: support
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \
 		echo "ERROR: Chez is missing threading support" ; exit 1 ; fi
 	mkdir -p bootstrap-build/idris2_app
-ifeq ($(SKIP_SUPPORT),)
-	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
-endif
+	cp ${IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
 	sed 's/libidris2_support.so/${IDRIS2_SUPPORT}/g; s|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
 		bootstrap/idris2_app/idris2.ss \
 		> bootstrap-build/idris2_app/idris2-boot.ss
@@ -273,9 +271,7 @@ endif
 # Bootstrapping using racket
 bootstrap-racket: support
 	mkdir -p bootstrap-build/idris2_app
-ifeq ($(SKIP_SUPPORT),)
-	cp support/c/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
-endif
+	cp ${IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT} bootstrap-build/idris2_app/
 	sed 's|__PREFIX__|${IDRIS2_BOOT_PREFIX}|g' \
 		bootstrap/idris2_app/idris2.rkt \
 		> bootstrap-build/idris2_app/idris2-boot.rkt

@@ -31,8 +31,9 @@ stdenv.mkDerivation rec {
   buildFlags = [ "PREFIX=$(out)" ] ++
     lib.optional bootstrap [
       "bootstrap" "SCHEME=scheme"
-      "LD_LIBRARY_PATH=${supportLibrariesPath}"
-      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+      "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
+#      "LD_LIBRARY_PATH=${supportLibrariesPath}"
+#      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
       "IDRIS2_DATA=${supportSharePath}"
       "IDRIS2_LIBS=${supportLibrariesPath}"
     ];
@@ -43,16 +44,18 @@ stdenv.mkDerivation rec {
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [
     "INTERACTIVE="
-    "LD_LIBRARY_PATH=${supportLibrariesPath}"
-    "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+    "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
+#    "LD_LIBRARY_PATH=${supportLibrariesPath}"
+#    "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
     "TEST_IDRIS2_DATA=${supportSharePath}"
     "TEST_IDRIS2_LIBS=${supportLibrariesPath}"
   ];
 
   installFlags = [ "PREFIX=$(out)" ] ++
     lib.optional bootstrap [
-      "LD_LIBRARY_PATH=${supportLibrariesPath}"
-      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+      "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
+#      "LD_LIBRARY_PATH=${supportLibrariesPath}"
+#      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
     ];
 
   # TODO: Move this into its own derivation, such that this can be changed
