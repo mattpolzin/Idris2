@@ -251,6 +251,9 @@
 
 * Adds `Data.Vect.foldrImplGoLemma`.
 
+* `Ref` interface from `Data.Ref` inherits `Monad` and was extended by a function
+  for value modification implemented through reading and writing by default.
+
 #### System
 
 * Changes `getNProcessors` to return the number of online processors rather than
@@ -314,6 +317,7 @@
 * Updates the docs for `envvars` to categorise when environment variables are
   used (runtime, build-time, or both).
 * Fixed build failure occuring when `make -j` is in effect.
+* Add `clean_names` function to `testutils.sh` to normalise machine names
 
 ## v0.6.0
 
