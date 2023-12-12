@@ -47,6 +47,8 @@ stdenv.mkDerivation rec {
     "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
 #    "LD_LIBRARY_PATH=${supportLibrariesPath}"
 #    "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
+    "IDRIS2_DATA=${supportSharePath}"
+    "IDRIS2_LIBS=${supportLibrariesPath}"
     "TEST_IDRIS2_DATA=${supportSharePath}"
     "TEST_IDRIS2_LIBS=${supportLibrariesPath}"
   ];
