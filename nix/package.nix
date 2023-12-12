@@ -25,13 +25,12 @@ stdenv.mkDerivation rec {
   '';
 
   # SKIP_SUPPORT becuase it is built as its own derivation.
-  makeFlags = [ "SKIP_SUPPORT=true" ] ++ lib.optional stdenv.isDarwin "OS=";
+  makeFlags = [ "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}" "SKIP_SUPPORT=true" ] ++ lib.optional stdenv.isDarwin "OS=";
 
   # The name of the main executable of pkgs.chez is `scheme`
   buildFlags = [ "PREFIX=$(out)" ] ++
     lib.optional bootstrap [
       "bootstrap" "SCHEME=scheme"
-      "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
 #      "LD_LIBRARY_PATH=${supportLibrariesPath}"
 #      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
       "IDRIS2_DATA=${supportSharePath}"
@@ -44,7 +43,6 @@ stdenv.mkDerivation rec {
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [
     "INTERACTIVE="
-    "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
 #    "LD_LIBRARY_PATH=${supportLibrariesPath}"
 #    "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
     "IDRIS2_DATA=${supportSharePath}"
@@ -55,7 +53,6 @@ stdenv.mkDerivation rec {
 
   installFlags = [ "PREFIX=$(out)" ] ++
     lib.optional bootstrap [
-      "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
 #      "LD_LIBRARY_PATH=${supportLibrariesPath}"
 #      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
     ];
