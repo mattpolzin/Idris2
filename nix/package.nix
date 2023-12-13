@@ -24,15 +24,13 @@ stdenv.mkDerivation rec {
     sed 's/$(GIT_SHA1)/${srcRev}/' -i Makefile
   '';
 
-  # SKIP_SUPPORT becuase it is built as its own derivation.
-  makeFlags = [ "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}" "SKIP_SUPPORT=true" ] ++ lib.optional stdenv.isDarwin "OS=";
+  makeFlags = [ "IDRIS2_SUPPORT_DIR=${supportLibrariesPath}" ]
+    ++ lib.optional stdenv.isDarwin "OS=";
 
   # The name of the main executable of pkgs.chez is `scheme`
   buildFlags = [ "PREFIX=$(out)" ] ++
     lib.optional bootstrap [
       "bootstrap" "SCHEME=scheme"
-#      "LD_LIBRARY_PATH=${supportLibrariesPath}"
-#      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
       "IDRIS2_DATA=${supportSharePath}"
       "IDRIS2_LIBS=${supportLibrariesPath}"
     ];
@@ -43,19 +41,15 @@ stdenv.mkDerivation rec {
   checkInputs = [ gambit nodejs ]; # racket ];
   checkFlags = [
     "INTERACTIVE="
-#    "LD_LIBRARY_PATH=${supportLibrariesPath}"
-#    "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
     "IDRIS2_DATA=${supportSharePath}"
     "IDRIS2_LIBS=${supportLibrariesPath}"
     "TEST_IDRIS2_DATA=${supportSharePath}"
     "TEST_IDRIS2_LIBS=${supportLibrariesPath}"
+    "TEST_IDRIS2_SUPPORT_DIR=${supportLibrariesPath}"
   ];
 
-  installFlags = [ "PREFIX=$(out)" ] ++
-    lib.optional bootstrap [
-#      "LD_LIBRARY_PATH=${supportLibrariesPath}"
-#      "DYLD_LIBRARY_PATH=${supportLibrariesPath}"
-    ];
+  installTargets = "install-idris2 install-libs";
+  installFlags = [ "PREFIX=$(out)" ];
 
   # TODO: Move this into its own derivation, such that this can be changed
   #       without having to recompile idris2 every time.

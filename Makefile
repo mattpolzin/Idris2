@@ -47,6 +47,8 @@ IDRIS2_SUPPORT_DIR ?= ${IDRIS2_CURDIR}/support/c
 
 TEST_PREFIX ?= ${IDRIS2_CURDIR}/build/env
 
+TEST_IDRIS2_SUPPORT_DIR ?= ${TEST_PREFIX}/${NAME_VERSION}
+
 # Library and data paths for bootstrap-test
 IDRIS2_BOOT_PREFIX := ${IDRIS2_CURDIR}/bootstrap-build
 
@@ -115,8 +117,6 @@ libdocs:
 
 ifeq ($(OS), windows)
 ${TEST_PREFIX}/${NAME_VERSION} :
-	mkdir -p ${TEST_PREFIX}/${NAME_VERSION}
-	${MAKE} install-support PREFIX=${TEST_PREFIX}
 	cp -rf ${IDRIS2_CURDIR}/libs/prelude/build/ttc ${TEST_PREFIX}/${NAME_VERSION}/prelude-${IDRIS2_VERSION}
 	cp -rf ${IDRIS2_CURDIR}/libs/base/build/ttc    ${TEST_PREFIX}/${NAME_VERSION}/base-${IDRIS2_VERSION}
 	cp -rf ${IDRIS2_CURDIR}/libs/linear/build/ttc  ${TEST_PREFIX}/${NAME_VERSION}/linear-${IDRIS2_VERSION}
@@ -125,8 +125,6 @@ ${TEST_PREFIX}/${NAME_VERSION} :
 	cp -rf ${IDRIS2_CURDIR}/libs/test/build/ttc    ${TEST_PREFIX}/${NAME_VERSION}/test-${IDRIS2_VERSION}
 else
 ${TEST_PREFIX}/${NAME_VERSION} :
-	mkdir -p ${TEST_PREFIX}/${NAME_VERSION}
-	${MAKE} install-support PREFIX=${TEST_PREFIX}
 	ln -sf ${IDRIS2_CURDIR}/libs/prelude/build/ttc ${TEST_PREFIX}/${NAME_VERSION}/prelude-${IDRIS2_VERSION}
 	ln -sf ${IDRIS2_CURDIR}/libs/base/build/ttc    ${TEST_PREFIX}/${NAME_VERSION}/base-${IDRIS2_VERSION}
 	ln -sf ${IDRIS2_CURDIR}/libs/linear/build/ttc  ${TEST_PREFIX}/${NAME_VERSION}/linear-${IDRIS2_VERSION}
@@ -137,7 +135,13 @@ endif
 
 .PHONY: ${TEST_PREFIX}/${NAME_VERSION}
 
-testenv:
+${TEST_IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT}:
+	${MAKE} install-support PREFIX=${TEST_PREFIX}
+
+test-support: ${TEST_IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT}
+
+testenv: test-support
+	mkdir -p ${TEST_PREFIX}/${NAME_VERSION}
 	@${MAKE} ${TEST_PREFIX}/${NAME_VERSION}
 	@${MAKE} -C tests testbin IDRIS2=${TARGET} IDRIS2_PREFIX=${TEST_PREFIX}
 
@@ -168,10 +172,10 @@ test-installed:
 	@${MAKE} -C tests testbin      IDRIS2=$(IDRIS2_PREFIX)/bin/idris2 IDRIS2_PREFIX=${IDRIS2_PREFIX}
 	@${MAKE} -C tests only=$(only) IDRIS2=$(IDRIS2_PREFIX)/bin/idris2 IDRIS2_PREFIX=${IDRIS2_PREFIX}
 
-support:
-ifeq ($(SKIP_SUPPORT),)
+${IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT}:
 	@${MAKE} -C support
-endif
+
+support: ${IDRIS2_SUPPORT_DIR}/${IDRIS2_SUPPORT}
 
 clean-support:
 	@${MAKE} -C support clean
@@ -210,9 +214,7 @@ endif
 	install ${TARGETDIR}/${NAME}_app/* ${DESTDIR}${PREFIX}/bin/${NAME}_app
 
 install-support:
-ifeq ($(SKIP_SUPPORT),)
 	@${MAKE} -C support install
-endif
 
 install-bootstrap-libs:
 	${MAKE} -C libs/prelude install IDRIS2=${TARGET} IDRIS2_PATH=${IDRIS2_BOOT_PATH} IDRIS2_INC_CGS=${IDRIS2_CG}
