@@ -247,9 +247,7 @@ install-libdocs: libdocs
 	cp -r libs/network/build/docs/* ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/network
 	cp -r libs/test/build/docs/*    ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/test
 	cp -r libs/linear/build/docs/*  ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs/linear
-ifeq ($(SKIP_SUPPORT),)
 	install -m 644 support/docs/*   ${DESTDIR}${PREFIX}/${NAME_VERSION}/docs
-endif
 
 
 .PHONY: bootstrap bootstrap-build bootstrap-racket bootstrap-racket-build bootstrap-test bootstrap-clean
@@ -257,7 +255,7 @@ endif
 # Bootstrapping using SCHEME
 #
 # If you are bootstrapping using SCHEME _without building support_, support must have been explicitly
-# built previously and you must set the LD_LIBRARY_PATH and IDRIS2_DATA environment variables to the
+# built previously and you must set the IDRIS2_SUPPORT_DIR and IDRIS2_DATA environment variables to the
 # locations of the lib and support folders (i.e. "/some/location/lib" and "/some/location/support").
 bootstrap: support
 	@if [ "$$(echo '(threaded?)' | $(SCHEME) --quiet)" = "#f" ] ; then \
