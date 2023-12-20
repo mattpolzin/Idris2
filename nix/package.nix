@@ -54,11 +54,11 @@ stdenv.mkDerivation rec {
   # TODO: Move this into its own derivation, such that this can be changed
   #       without having to recompile idris2 every time.
   postInstall = let
-    folderName = "${pname}-${version}";
+    name = "${pname}-${version}";
     globalLibraries = [
-      "\\$HOME/.nix-profile/lib/${folderName}"
-      "/run/current-system/sw/lib/${folderName}"
-      "$out/${folderName}"
+      "\\$HOME/.nix-profile/lib/${name}"
+      "/run/current-system/sw/lib/${name}"
+      "$out/${name}"
     ];
     globalLibrariesPath = builtins.concatStringsSep ":" globalLibraries;
   in ''
