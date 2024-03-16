@@ -28,10 +28,7 @@
         system:
         let
           pkgs = import nixpkgs { inherit config system overlays; };
-          chez = if system == "x86_64-linux" then
-            pkgs.chez
-          else
-            pkgs.chez-racket; # TODO: Should this always be the default?
+          inherit (pkgs) chez;
           idris2Support = pkgs.callPackage ./nix/support.nix { inherit idris2Version; };
           idris2Bootstrap = pkgs.callPackage ./nix/package.nix {
             inherit idris2Version chez;
