@@ -1,0 +1,5 @@
+. ../../testutils.sh
+
+idris2 --cg refc -p contrib -o refc_lotsOfArgs LotsOfArgs.idr
+cat -v ./build/exec/refc_lotsOfArgs.c
+$VALGRIND ./build/exec/refc_lotsOfArgs
